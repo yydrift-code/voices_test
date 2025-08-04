@@ -195,13 +195,14 @@ async def transcribe_with_google(audio_file_path: str, language: str) -> str:
         with open(audio_file_path, 'rb') as f:
             audio_data = f.read()
         
-        # Configure the recognition
+        # Configure the recognition - let Google auto-detect the format
         audio = speech.RecognitionAudio(content=audio_data)
         config = speech.RecognitionConfig(
-            encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
-            sample_rate_hertz=22050,  # Adjust based on your audio
+            # Don't specify encoding and sample rate - let Google auto-detect
             language_code=language,
             enable_automatic_punctuation=True,
+            enable_word_time_offsets=False,
+            enable_word_confidence=False,
         )
         
         # Perform the transcription

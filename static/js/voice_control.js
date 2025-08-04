@@ -12,6 +12,7 @@ class VoiceAgentControl {
         this.audioChunks = [];
         this.isRecording = false;
         this.stream = null;
+        this.recordingInterval = null;
         
         this.initializeElements();
         this.loadData();
@@ -31,8 +32,6 @@ class VoiceAgentControl {
         this.replayButton = document.getElementById('replayButton');
         
         // Voice recording elements
-        this.recordButton = document.getElementById('recordButton');
-        this.stopButton = document.getElementById('stopButton');
         this.voiceStatus = document.getElementById('voiceStatus');
         this.callStatus = document.getElementById('callStatus');
         this.providerInfo = document.getElementById('providerInfo');
@@ -42,7 +41,7 @@ class VoiceAgentControl {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             stream.getTracks().forEach(track => track.stop()); // Stop the test stream
-            this.voiceStatus.textContent = 'Microphone access granted. Click the microphone to start speaking.';
+            this.voiceStatus.textContent = 'Microphone access granted. Click "Start Call" to begin voice conversation.';
         } catch (error) {
             console.error('Microphone permission denied:', error);
             this.voiceStatus.textContent = 'Microphone access denied. Please allow microphone access to use voice features.';
@@ -133,7 +132,7 @@ class VoiceAgentControl {
         }
     }
     
-    startCall(languageCode, provider, languageName) {
+    async startCall(languageCode, provider, languageName) {
         // Update button states - only disable non-active buttons
         this.disableAllButtons();
         
@@ -158,6 +157,9 @@ class VoiceAgentControl {
         
         // Add welcome message
         this.addMessage('agent', `Hello! I'm your ${languageName} voice agent using ${provider}. How can I help you today?`);
+        
+        // Start automatic voice recording
+        await this.startAutomaticRecording();
     }
     
     endCall() {
@@ -165,6 +167,23 @@ class VoiceAgentControl {
         if (this.isRecording) {
             this.stopRecording();
         }
+        
+        // Clear recording interval
+        if (this.recordingInterval) {
+            clearInterval(this.recordingInterval);
+            this.recordingInterval = null;
+        }
+        
+        // Stop and cleanup media stream
+        if (this.stream) {
+            this.stream.getTracks().forEach(track => track.stop());
+            this.stream = null;
+        }
+        
+        // Reset recording state
+        this.mediaRecorder = null;
+        this.audioChunks = [];
+        this.isRecording = false;
         
         // Reset button states
         this.enableAllButtons();
@@ -202,9 +221,8 @@ class VoiceAgentControl {
     showConversationPanel() {
         this.conversationPanel.style.display = 'block';
         this.activeAgentInfo.textContent = `${this.activeAgent.languageName} - ${this.activeAgent.provider}`;
-        this.recordButton.disabled = false;
         this.callStatus.style.display = 'flex';
-        this.voiceStatus.textContent = 'Click the microphone to start speaking';
+        this.voiceStatus.textContent = 'Starting voice conversation...';
         
         // Show provider info
         const sttProvider = this.activeAgent.provider === 'pyttsx3' ? 'Not available (TTS-only)' : this.activeAgent.provider;
@@ -216,12 +234,9 @@ class VoiceAgentControl {
     
     hideConversationPanel() {
         this.conversationPanel.style.display = 'none';
-        this.recordButton.disabled = true;
-        this.stopButton.style.display = 'none';
-        this.recordButton.style.display = 'inline-block';
         this.audioControls.style.display = 'none';
         this.callStatus.style.display = 'none';
-        this.voiceStatus.textContent = 'Click the microphone to start speaking';
+        this.voiceStatus.textContent = 'Click "Start Call" to begin voice conversation';
         this.voiceStatus.className = 'voice-status';
         this.providerInfo.innerHTML = '';
     }
@@ -308,10 +323,25 @@ class VoiceAgentControl {
         }
     }
     
-    async startRecording() {
+    async startAutomaticRecording() {
         try {
-            this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            this.mediaRecorder = new MediaRecorder(this.stream);
+            this.stream = await navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    sampleRate: 44100,
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true
+                } 
+            });
+            
+            // Try to use WAV format if supported, otherwise fall back to default
+            const mimeType = MediaRecorder.isTypeSupported('audio/wav') 
+                ? 'audio/wav' 
+                : MediaRecorder.isTypeSupported('audio/webm') 
+                    ? 'audio/webm' 
+                    : 'audio/mp4';
+            
+            this.mediaRecorder = new MediaRecorder(this.stream, { mimeType });
             this.audioChunks = [];
             
             this.mediaRecorder.ondataavailable = (event) => {
@@ -320,22 +350,48 @@ class VoiceAgentControl {
             
             this.mediaRecorder.onstop = async () => {
                 const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' });
+                this.audioChunks = []; // Clear chunks for next recording
                 await this.processVoiceInput(audioBlob);
+                
+                // Restart recording after processing (but only if still in active call)
+                if (this.activeAgent && this.isConnected && !this.isRecording) {
+                    setTimeout(() => {
+                        if (this.activeAgent && this.isConnected) {
+                            this.startRecording();
+                        }
+                    }, 2000); // Wait 2 seconds before restarting
+                }
             };
             
-            this.mediaRecorder.start();
-            this.isRecording = true;
+            // Start initial recording
+            this.startRecording();
             
-            // Update UI
-            this.recordButton.classList.add('recording');
-            this.recordButton.style.display = 'none';
-            this.stopButton.style.display = 'inline-block';
-            this.voiceStatus.textContent = 'Recording... Click stop when finished speaking';
-            this.voiceStatus.className = 'voice-status recording';
+            // Set up periodic recording (every 15 seconds) - only if not already recording
+            this.recordingInterval = setInterval(() => {
+                if (this.activeAgent && this.isConnected && !this.isRecording) {
+                    this.startRecording();
+                }
+            }, 15000);
             
         } catch (error) {
-            console.error('Error starting recording:', error);
-            this.showError('Failed to start recording. Please check microphone permissions.');
+            console.error('Error starting automatic recording:', error);
+            this.showError('Failed to start voice recording. Please check microphone permissions.');
+        }
+    }
+    
+    startRecording() {
+        if (this.mediaRecorder && !this.isRecording && this.activeAgent) {
+            this.mediaRecorder.start();
+            this.isRecording = true;
+            this.voiceStatus.textContent = 'Listening... Speak now';
+            this.voiceStatus.className = 'voice-status recording';
+            
+            // Stop recording after 5 seconds
+            setTimeout(() => {
+                if (this.isRecording && this.activeAgent) {
+                    this.stopRecording();
+                }
+            }, 5000);
         }
     }
     
@@ -343,17 +399,6 @@ class VoiceAgentControl {
         if (this.mediaRecorder && this.isRecording) {
             this.mediaRecorder.stop();
             this.isRecording = false;
-            
-            // Stop all tracks
-            if (this.stream) {
-                this.stream.getTracks().forEach(track => track.stop());
-                this.stream = null;
-            }
-            
-            // Update UI
-            this.recordButton.classList.remove('recording');
-            this.recordButton.style.display = 'inline-block';
-            this.stopButton.style.display = 'none';
             this.voiceStatus.textContent = 'Processing your voice...';
             this.voiceStatus.className = 'voice-status';
         }
@@ -361,6 +406,21 @@ class VoiceAgentControl {
     
     async processVoiceInput(audioBlob) {
         try {
+            // Check if call is still active
+            if (!this.activeAgent) {
+                console.log('Call ended, skipping voice processing');
+                return;
+            }
+            
+            // Check if audio blob has content
+            if (audioBlob.size === 0) {
+                console.log('Empty audio blob, skipping processing');
+                if (this.activeAgent) {
+                    this.voiceStatus.textContent = 'Listening for next input...';
+                }
+                return;
+            }
+            
             // Convert blob to base64
             const arrayBuffer = await audioBlob.arrayBuffer();
             const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
@@ -380,6 +440,12 @@ class VoiceAgentControl {
             
             const result = await response.json();
             
+            // Check again if call is still active after processing
+            if (!this.activeAgent) {
+                console.log('Call ended during processing, skipping response');
+                return;
+            }
+            
             if (result.success) {
                 const transcribedText = result.text;
                 this.addMessage('user', transcribedText);
@@ -395,33 +461,26 @@ class VoiceAgentControl {
                     this.websocket.send(JSON.stringify(data));
                 }
                 
-                this.voiceStatus.textContent = 'Click the microphone to speak again';
+                if (this.activeAgent) {
+                    this.voiceStatus.textContent = 'Listening for next input...';
+                }
             } else {
                 this.showError('Failed to transcribe speech: ' + result.error);
-                this.voiceStatus.textContent = 'Click the microphone to try again';
+                if (this.activeAgent) {
+                    this.voiceStatus.textContent = 'Listening for next input...';
+                }
             }
             
         } catch (error) {
             console.error('Error processing voice input:', error);
             this.showError('Failed to process voice input');
-            this.voiceStatus.textContent = 'Click the microphone to try again';
+            if (this.activeAgent) {
+                this.voiceStatus.textContent = 'Listening for next input...';
+            }
         }
     }
     
     setupEventListeners() {
-        // Voice recording controls
-        this.recordButton.addEventListener('click', () => {
-            if (!this.isRecording) {
-                this.startRecording();
-            }
-        });
-        
-        this.stopButton.addEventListener('click', () => {
-            if (this.isRecording) {
-                this.stopRecording();
-            }
-        });
-        
         // Audio controls
         this.replayButton.addEventListener('click', () => {
             this.audioPlayer.currentTime = 0;

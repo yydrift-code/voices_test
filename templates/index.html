@@ -143,51 +143,6 @@
             text-align: center;
         }
         
-        .voice-button {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            border: none;
-            font-size: 24px;
-            margin: 0 10px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            position: relative;
-        }
-        
-        .voice-button.record {
-            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-            color: white;
-            box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
-        }
-        
-        .voice-button.record:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 12px rgba(220, 53, 69, 0.4);
-        }
-        
-        .voice-button.record.recording {
-            background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
-            animation: recording-pulse 1.5s infinite;
-        }
-        
-        .voice-button.stop {
-            background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
-            color: white;
-            box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
-        }
-        
-        .voice-button.stop:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 12px rgba(108, 117, 125, 0.4);
-        }
-        
-        @keyframes recording-pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-        
         .voice-status {
             margin-top: 15px;
             font-size: 14px;
@@ -295,18 +250,10 @@
                             <span>Call in progress...</span>
                         </div>
                         
-                        <div class="voice-buttons">
-                            <button class="voice-button record" id="recordButton" disabled>
-                                <i class="fas fa-microphone"></i>
-                            </button>
-                            <button class="voice-button stop" id="stopButton" style="display: none;">
-                                <i class="fas fa-stop"></i>
-                            </button>
+                        <div class="voice-status" id="voiceStatus">
+                            Click "Start Call" to begin voice conversation
                         </div>
                         
-                        <div class="voice-status" id="voiceStatus">
-                            Click the microphone to start speaking
-                        </div>
                         <div class="provider-info" id="providerInfo" style="font-size: 12px; color: #6c757d; margin-top: 10px;">
                             <!-- Provider info will be populated by JavaScript -->
                         </div>
