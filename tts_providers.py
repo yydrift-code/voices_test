@@ -72,8 +72,7 @@ class TTSProviderManager:
         if not api_key:
             raise ValueError("OPENAI_API_KEY not found in environment")
         
-        openai.api_key = api_key
-        return {"client": openai}
+        return {"api_key": api_key}
     
     def _init_google(self):
         """Initialize Google Cloud TTS"""
@@ -131,7 +130,8 @@ class TTSProviderManager:
     async def _generate_openai_bytes(self, text: str, language: str) -> bytes:
         """Generate speech using OpenAI TTS and return as bytes"""
         try:
-            response = openai.audio.speech.create(
+            client = openai.OpenAI()
+            response = client.audio.speech.create(
                 model="tts-1",
                 voice="alloy",
                 input=text,
@@ -146,7 +146,8 @@ class TTSProviderManager:
     async def _generate_openai(self, text: str, language: str, output_path: Path):
         """Generate speech using OpenAI TTS"""
         try:
-            response = openai.audio.speech.create(
+            client = openai.OpenAI()
+            response = client.audio.speech.create(
                 model="tts-1",
                 voice="alloy",
                 input=text,

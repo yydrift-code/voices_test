@@ -80,11 +80,11 @@ async def websocket_endpoint(websocket: WebSocket):
             message_data = json.loads(data)
             
             # Create agent based on type
-            agent_type_str = message_data.get("agent_type", "customer_service")
+            agent_type_str = message_data.get("agent_type", "presale_manager")
             try:
                 agent_type = AgentType(agent_type_str)
             except ValueError:
-                agent_type = AgentType.CUSTOMER_SERVICE
+                agent_type = AgentType.PRESALE_MANAGER
             
             agent = VoiceAgent(agent_type, tts_manager, message_data.get("language", "en"))
             
@@ -164,20 +164,21 @@ async def transcribe_with_openai(audio_file_path: str, language: str) -> str:
         if not api_key:
             raise Exception("OpenAI API key not found")
         
-        openai.api_key = api_key
-        
         # Read the audio file
         with open(audio_file_path, 'rb') as f:
             audio_data = f.read()
         
-        # Use OpenAI Whisper for transcription
-        response = openai.audio.transcriptions.create(
+        # Use OpenAI Whisper for transcription with new API
+        client = openai.OpenAI()
+        response = client.audio.transcriptions.create(
             model="whisper-1",
             file=("audio.wav", audio_data, "audio/wav"),
             language=language
         )
         
-        return response.text
+        # Check if response is empty or contains no meaningful text
+        transcribed_text = response.text.strip() if response.text else ""
+        return transcribed_text if transcribed_text else ""
         
     except Exception as e:
         print(f"OpenAI STT error: {e}")
@@ -213,7 +214,7 @@ async def transcribe_with_google(audio_file_path: str, language: str) -> str:
         for result in response.results:
             transcribed_text += result.alternatives[0].transcript
         
-        return transcribed_text if transcribed_text else "No speech detected"
+        return transcribed_text if transcribed_text else ""
         
     except Exception as e:
         print(f"Google STT error: {e}")
@@ -308,11 +309,11 @@ async def conversation_endpoint(message: Message):
     
     try:
         # Create agent based on type
-        agent_type_str = message.agent_type or "customer_service"
+        agent_type_str = message.agent_type or "presale_manager"
         try:
             agent_type = AgentType(agent_type_str)
         except ValueError:
-            agent_type = AgentType.CUSTOMER_SERVICE
+            agent_type = AgentType.PRESALE_MANAGER
         
         agent = VoiceAgent(agent_type, tts_manager, message.language)
         

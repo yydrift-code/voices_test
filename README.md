@@ -1,14 +1,16 @@
-# RenovaVision TTS Demo - AI Voice Agent Comparison Platform
+# RenovaVision AI Voice Demo - Intelligent Voice Agent Platform
 
-A comprehensive demo platform for comparing different Text-to-Speech (TTS) and Speech-to-Text (STT) providers, featuring an interactive AI voice agent that acts as a RenovaVision presale specialist with full voice conversation capabilities.
+A comprehensive demo platform featuring an intelligent AI voice agent powered by GPT-4o-mini that acts as a RenovaVision presale specialist. The agent can conduct natural voice conversations in multiple languages, demonstrating the power of AI voice technology for business applications.
 
 ## Features
 
-- **Interactive AI Voice Agent**: Have natural voice conversations with an AI agent
+- **Intelligent AI Voice Agent**: Powered by GPT-4o-mini for natural, contextual conversations
+- **RenovaVision Presale Specialist**: Specialized agent for introducing AI voice solutions
 - **Voice Input & Output**: Full voice conversation interface - speak to the agent and hear responses
 - **Provider-Paired TTS/STT**: Each agent uses the same provider for both speech-to-text and text-to-speech
 - **Multi-Provider Comparison**: Compare audio quality across multiple TTS/STT providers
 - **Multilingual Support**: Support for Belarusian, Polish, Lithuanian, Latvian, and Estonian
+- **Language-Specific Responses**: Agent responds in the selected language, not English
 - **Real-time Voice Generation**: Generate and play audio responses instantly
 - **WebSocket Communication**: Real-time voice conversation interface
 - **Modern Web Interface**: Beautiful, responsive UI with phone call-like experience
@@ -17,7 +19,7 @@ A comprehensive demo platform for comparing different Text-to-Speech (TTS) and S
 
 Each provider handles both text-to-speech and speech-to-text:
 
-1. **OpenAI** - TTS: OpenAI TTS, STT: OpenAI Whisper
+1. **OpenAI** - TTS: OpenAI TTS, STT: OpenAI Whisper, LLM: GPT-4o-mini
 2. **Google Cloud** - TTS: Google Cloud TTS, STT: Google Speech-to-Text  
 3. **pyttsx3** - TTS: Offline system voices, STT: Not available (TTS-only)
 
@@ -60,7 +62,7 @@ Each provider handles both text-to-speech and speech-to-text:
 
 ### Required API Keys
 
-- **OpenAI API Key**: Required for OpenAI TTS and Whisper STT
+- **OpenAI API Key**: Required for OpenAI TTS, Whisper STT, and GPT-4o-mini LLM
   - Get from: https://platform.openai.com/api-keys
 - **Google Cloud**: Requires Google Cloud project and service account for TTS and STT
 
