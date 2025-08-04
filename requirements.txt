@@ -1,0 +1,24 @@
+# Core dependencies
+fastapi
+uvicorn
+python-multipart
+websockets
+pydantic
+
+# TTS Providers
+openai
+google-cloud-texttospeech
+pyttsx3
+
+# Audio processing
+pydub
+soundfile
+ffmpeg-python
+
+# Web interface
+jinja2
+aiofiles
+
+# Utilities
+python-dotenv
+requests 
