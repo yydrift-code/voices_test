@@ -21,6 +21,16 @@ class VoiceAgentControl {
         this.analyser = null; // For audio analysis
         this.microphone = null; // For audio analysis
         
+        // Audio playback properties
+        this.audioQueue = []; // Queue for audio playback
+        this.isPlayingAudio = false; // Flag to track if audio is currently playing
+        this.lastAudioPlayTime = 0; // Track when audio was last played
+        
+        // Response throttling
+        this.lastResponseTime = 0; // Track when last response was sent
+        this.responseThrottleMs = 3000; // Minimum time between responses (3 seconds)
+        this.isAgentResponding = false; // Flag to prevent multiple simultaneous responses
+        
         this.initializeElements();
         this.loadData();
         this.setupEventListeners();
@@ -194,6 +204,15 @@ class VoiceAgentControl {
         this.processingQueue = [];
         this.isProcessing = false;
         
+        // Reset audio playback state
+        this.audioQueue = [];
+        this.isPlayingAudio = false;
+        
+        // Reset response throttling
+        this.lastResponseTime = 0;
+        this.isAgentResponding = false;
+        this.lastAudioPlayTime = 0;
+        
         // Clean up audio analysis
         if (this.silenceTimer) {
             clearTimeout(this.silenceTimer);
@@ -309,6 +328,7 @@ class VoiceAgentControl {
     handleWebSocketMessage(data) {
         switch (data.type) {
             case 'agent_response':
+                this.isAgentResponding = true;
                 this.addMessage('agent', data.text);
                 this.playAudio(data.audio_file);
                 break;
@@ -333,14 +353,47 @@ class VoiceAgentControl {
     async playAudio(audioFile) {
         if (!audioFile) return;
         
+        // Limit queue size to prevent memory issues
+        if (this.audioQueue.length >= 10) {
+            console.log('Audio queue full, skipping:', audioFile);
+            return;
+        }
+        
+        console.log('Adding audio to queue:', audioFile);
+        // Add to audio queue
+        this.audioQueue.push(audioFile);
+        
+        // If not currently playing, start playing
+        if (!this.isPlayingAudio) {
+            this.processAudioQueue();
+        }
+    }
+    
+    async processAudioQueue() {
+        if (this.audioQueue.length === 0 || this.isPlayingAudio) {
+            return;
+        }
+        
+        this.isPlayingAudio = true;
+        const audioFile = this.audioQueue.shift();
+        console.log('Processing audio from queue:', audioFile, 'Queue length:', this.audioQueue.length);
+        
         const audioUrl = `/api/audio/${audioFile}`;
         this.audioPlayer.src = audioUrl;
         this.audioControls.style.display = 'flex';
         
         try {
+            // Pause recording while agent is speaking to prevent feedback
+            if (this.isRecording) {
+                this.stopRecording();
+            }
+            
             await this.audioPlayer.play();
         } catch (error) {
             console.error('Error playing audio:', error);
+            this.isPlayingAudio = false;
+            // Try to play next audio in queue
+            this.processAudioQueue();
         }
     }
     
@@ -376,9 +429,19 @@ class VoiceAgentControl {
                 const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' });
                 this.audioChunks = []; // Clear chunks for next recording
                 
-                // Add to processing queue instead of processing immediately
-                this.processingQueue.push(audioBlob);
-                this.processQueue();
+                        // Only add to processing queue if blob has content and call is active
+        // AND we haven't recently played audio (to prevent agent hearing itself)
+        const timeSinceLastAudio = Date.now() - (this.lastAudioPlayTime || 0);
+        const recentlyPlayedAudio = timeSinceLastAudio < 4000; // 4 seconds after audio played
+        
+        if (audioBlob.size > 0 && this.activeAgent && this.isConnected && 
+            !this.isAgentResponding && !this.isPlayingAudio && !this.isProcessing && 
+            !recentlyPlayedAudio) {
+            this.processingQueue.push(audioBlob);
+            this.processQueue();
+        } else if (recentlyPlayedAudio) {
+            console.log('Blocking audio processing - too soon after agent spoke');
+        }
                 
                 // Immediately start the next recording session
                 if (this.activeAgent && this.isConnected) {
@@ -505,12 +568,33 @@ class VoiceAgentControl {
         
         this.isProcessing = true;
         
-        while (this.processingQueue.length > 0) {
-            const audioBlob = this.processingQueue.shift();
-            await this.processVoiceInput(audioBlob);
-        }
+        // Add timeout to prevent infinite processing
+        const processingTimeout = setTimeout(() => {
+            console.log('Processing timeout, resetting processing flag');
+            this.isProcessing = false;
+        }, 10000); // 10 second timeout
         
-        this.isProcessing = false;
+        try {
+            // Process up to 5 items at a time to prevent infinite loops
+            let processedCount = 0;
+            const maxProcessPerCycle = 5;
+            
+            while (this.processingQueue.length > 0 && processedCount < maxProcessPerCycle) {
+                const audioBlob = this.processingQueue.shift();
+                if (audioBlob && audioBlob.size > 0) {
+                    await this.processVoiceInput(audioBlob);
+                    processedCount++;
+                }
+            }
+        } finally {
+            clearTimeout(processingTimeout);
+            this.isProcessing = false;
+            
+            // If there are still items in queue, process them in the next cycle
+            if (this.processingQueue.length > 0) {
+                setTimeout(() => this.processQueue(), 100);
+            }
+        }
     }
     
     async processVoiceInput(audioBlob) {
@@ -530,9 +614,33 @@ class VoiceAgentControl {
                 return;
             }
             
-            // Convert blob to base64
+            // Convert blob to base64 with size limit
             const arrayBuffer = await audioBlob.arrayBuffer();
-            const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+            
+            // Check if audio is too large (limit to 1MB)
+            if (arrayBuffer.byteLength > 1024 * 1024) {
+                console.log('Audio blob too large, skipping processing');
+                return;
+            }
+            
+            // Convert to base64 safely
+            let base64Audio;
+            try {
+                const uint8Array = new Uint8Array(arrayBuffer);
+                // Use a more robust method for large arrays
+                const chunks = [];
+                const chunkSize = 8192; // Process in 8KB chunks
+                
+                for (let i = 0; i < uint8Array.length; i += chunkSize) {
+                    const chunk = uint8Array.slice(i, i + chunkSize);
+                    chunks.push(String.fromCharCode(...chunk));
+                }
+                
+                base64Audio = btoa(chunks.join(''));
+            } catch (error) {
+                console.log('Error converting audio to base64, skipping processing:', error.message);
+                return;
+            }
             
             // Send to backend for speech-to-text processing
             const response = await fetch('/api/speech-to-text', {
@@ -561,22 +669,56 @@ class VoiceAgentControl {
                 // Clean the transcribed text
                 const cleanText = transcribedText ? transcribedText.trim() : '';
                 
-                // Check if speech was actually detected - only proceed if we have meaningful text
-                const hasSpeech = cleanText.length > 1;
+                            // Check if speech was actually detected - only proceed if we have meaningful text
+            const hasSpeech = cleanText.length > 2; // Reduced minimum length to allow short phrases
+            
+            // Only filter out actual noise, not legitimate speech
+            const noiseWords = ['um', 'uh', 'ah', 'oh', 'hmm', 'mm', 'mhm'];
+            const isOnlyNoise = noiseWords.some(noise => cleanText.toLowerCase().trim() === noise);
+            
+            if (isOnlyNoise) {
+                console.log('Filtered out noise word:', cleanText);
+                return;
+            }
                 
                 if (hasSpeech) {
-                    // Only add message and send to agent if speech was detected
-                    this.addMessage('user', cleanText);
+                    // Only add message and send to agent if speech was detected AND agent is not responding
+                    // Also check if we've recently received a response to prevent feedback loops
+                    const timeSinceLastResponse = Date.now() - this.lastResponseTime;
+                    const recentlyResponded = timeSinceLastResponse < 5000; // 5 seconds
+                    const timeSinceLastAudio = Date.now() - (this.lastAudioPlayTime || 0);
+                    const recentlyPlayedAudio = timeSinceLastAudio < 4000; // 4 seconds
                     
-                    // Send to agent via WebSocket
-                    if (this.isConnected && this.activeAgent) {
-                        const data = {
-                            text: cleanText,
-                            language: this.activeAgent.language,
-                            provider: this.activeAgent.provider,
-                            agent_type: 'presale_manager'
-                        };
-                        this.websocket.send(JSON.stringify(data));
+                    if (!this.isAgentResponding && !this.isPlayingAudio && !recentlyResponded && !recentlyPlayedAudio) {
+                        this.addMessage('user', cleanText);
+                        
+                        // Send to agent via WebSocket with throttling
+                        if (this.isConnected && this.activeAgent) {
+                            const now = Date.now();
+                            const timeSinceLastResponse = now - this.lastResponseTime;
+                            
+                            if (timeSinceLastResponse >= this.responseThrottleMs) {
+                                const data = {
+                                    text: cleanText,
+                                    language: this.activeAgent.language,
+                                    provider: this.activeAgent.provider,
+                                    agent_type: 'presale_manager'
+                                };
+                                this.websocket.send(JSON.stringify(data));
+                                this.lastResponseTime = now;
+                                console.log('Sending message to agent (throttled)');
+                            } else {
+                                console.log('Throttling response - too soon since last response');
+                            }
+                        }
+                    } else {
+                        console.log('Ignoring speech - agent is currently responding or playing audio');
+                        if (recentlyPlayedAudio) {
+                            console.log('Blocked due to recent audio playback');
+                        }
+                        if (recentlyResponded) {
+                            console.log('Blocked due to recent response');
+                        }
                     }
                 } else {
                     // No speech detected, just continue listening
@@ -610,11 +752,78 @@ class VoiceAgentControl {
         });
         
         // Audio player events
+        this.audioPlayer.addEventListener('play', () => {
+            // Pause recording when agent starts speaking
+            if (this.isRecording) {
+                this.stopRecording();
+            }
+            // Update status to show agent is speaking
+            this.voiceStatus.textContent = 'Agent is speaking... Please wait';
+            // Track when audio started playing
+            this.lastAudioPlayTime = Date.now();
+            // Set agent as responding to prevent new messages
+            this.isAgentResponding = true;
+            
+            // Temporarily disable WebSocket to prevent any new messages
+            if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+                console.log('Temporarily disabling WebSocket during agent speech');
+                this.websocket.close();
+            }
+        });
+        
         this.audioPlayer.addEventListener('ended', () => {
+            this.isPlayingAudio = false;
+            this.isAgentResponding = false;
+            
+            // Reconnect WebSocket after agent finishes speaking
+            setTimeout(() => {
+                if (this.activeAgent && this.isConnected && !this.websocket) {
+                    console.log('Reconnecting WebSocket after agent speech');
+                    this.connectWebSocket();
+                }
+            }, 2000); // Wait 2 seconds before reconnecting
+            
+            // Resume recording when agent finishes speaking
+            if (this.activeAgent && this.isConnected && !this.isRecording) {
+                setTimeout(() => {
+                    this.startRecording();
+                    this.voiceStatus.textContent = 'Listening continuously... Speak anytime';
+                }, 1000); // Reduced delay to ensure audio has completely finished
+            }
+            
             // Auto-hide controls after playback
             setTimeout(() => {
                 this.audioControls.style.display = 'none';
             }, 2000);
+            
+            // Process next audio in queue
+            this.processAudioQueue();
+        });
+        
+        this.audioPlayer.addEventListener('pause', () => {
+            this.isPlayingAudio = false;
+            
+            // Resume recording if audio is paused
+            if (this.activeAgent && this.isConnected && !this.isRecording) {
+                this.startRecording();
+                this.voiceStatus.textContent = 'Listening continuously... Speak anytime';
+            }
+            
+            // Process next audio in queue
+            this.processAudioQueue();
+        });
+        
+        this.audioPlayer.addEventListener('error', () => {
+            this.isPlayingAudio = false;
+            
+            // Resume recording if audio playback fails
+            if (this.activeAgent && this.isConnected && !this.isRecording) {
+                this.startRecording();
+                this.voiceStatus.textContent = 'Listening continuously... Speak anytime';
+            }
+            
+            // Process next audio in queue
+            this.processAudioQueue();
         });
     }
     

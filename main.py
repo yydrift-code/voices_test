@@ -178,6 +178,31 @@ async def transcribe_with_openai(audio_file_path: str, language: str) -> str:
         
         # Check if response is empty or contains no meaningful text
         transcribed_text = response.text.strip() if response.text else ""
+        
+        # Filter out common false positives and noise
+        if transcribed_text:
+            # Convert to lowercase for comparison
+            text_lower = transcribed_text.lower()
+            
+            # List of actual noise words that indicate no real speech
+            noise_words = [
+                "um", "uh", "ah", "oh", "hmm", "mm", "mhm",
+                "silence", "background noise", "static", "white noise", "ambient sound"
+            ]
+            
+            # Check if the transcribed text is just noise
+            words = text_lower.split()
+            if len(words) == 1:  # Single words might be noise
+                for noise_word in noise_words:
+                    if noise_word == text_lower.strip():
+                        print(f"Filtered out noise word: '{transcribed_text}'")
+                        return ""
+            
+            # Check if text is completely empty
+            if len(transcribed_text.strip()) < 1:
+                print(f"Filtered out empty text: '{transcribed_text}'")
+                return ""
+        
         return transcribed_text if transcribed_text else ""
         
     except Exception as e:
