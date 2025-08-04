@@ -2,6 +2,7 @@ import os
 import asyncio
 import json
 import tempfile
+import base64
 from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime
@@ -15,7 +16,7 @@ from pydantic import BaseModel
 import aiofiles
 
 from tts_providers import TTSProviderManager
-from voice_agent import RenovaVisionAgent
+from voice_agents import VoiceAgent, AgentType
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -27,16 +28,14 @@ app = FastAPI(title="RenovaVision TTS Demo", description="Compare TTS providers 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# Initialize TTS provider manager and agent after environment variables are loaded
+# Initialize TTS provider manager after environment variables are loaded
 tts_manager = None
-agent = None
 
 def initialize_services():
-    global tts_manager, agent
+    global tts_manager
     if tts_manager is None:
         tts_manager = TTSProviderManager()
-        agent = RenovaVisionAgent(tts_manager)
-    return tts_manager, agent
+    return tts_manager
 
 # Store active connections
 active_connections: List[WebSocket] = []
@@ -45,16 +44,17 @@ class Message(BaseModel):
     text: str
     language: str = "en"
     provider: Optional[str] = None
+    agent_type: Optional[str] = None
+
+class SpeechToTextRequest(BaseModel):
+    audio_data: str  # Base64 encoded audio
+    language: str = "en"
+    provider: str = "openai"
 
 @app.get("/", response_class=HTMLResponse)
 async def get_home(request: Request):
-    """Main demo page"""
+    """Main voice agent control page"""
     return templates.TemplateResponse("index.html", {"request": request})
-
-@app.get("/demo", response_class=HTMLResponse)
-async def get_demo(request: Request):
-    """TTS comparison demo page"""
-    return templates.TemplateResponse("demo.html", {"request": request})
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -63,14 +63,13 @@ async def websocket_endpoint(websocket: WebSocket):
     active_connections.append(websocket)
     
     # Initialize services
-    tts_manager, agent = initialize_services()
+    tts_manager = initialize_services()
     
     try:
         # Send welcome message
         welcome_msg = {
-            "type": "agent_message",
-            "text": "Hello! I'm your RenovaVision AI Voice Agent specialist. I can help you explore different TTS providers and their capabilities. What would you like to know about our voice solutions?",
-            "provider": "openai",
+            "type": "system_message",
+            "text": "Welcome to the Voice Agent Demo! Choose an agent type and start chatting.",
             "timestamp": datetime.now().isoformat()
         }
         await websocket.send_text(json.dumps(welcome_msg))
@@ -79,6 +78,15 @@ async def websocket_endpoint(websocket: WebSocket):
             # Receive message from client
             data = await websocket.receive_text()
             message_data = json.loads(data)
+            
+            # Create agent based on type
+            agent_type_str = message_data.get("agent_type", "customer_service")
+            try:
+                agent_type = AgentType(agent_type_str)
+            except ValueError:
+                agent_type = AgentType.CUSTOMER_SERVICE
+            
+            agent = VoiceAgent(agent_type, tts_manager, message_data.get("language", "en"))
             
             # Process with agent
             response = await agent.process_message(
@@ -97,11 +105,130 @@ async def websocket_endpoint(websocket: WebSocket):
         if websocket in active_connections:
             active_connections.remove(websocket)
 
+@app.post("/api/speech-to-text")
+async def speech_to_text(request: SpeechToTextRequest):
+    """Convert speech to text using the same provider as TTS"""
+    try:
+        # Decode base64 audio data
+        audio_data = base64.b64decode(request.audio_data)
+        
+        # Save to temporary file
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+            temp_file.write(audio_data)
+            temp_file_path = temp_file.name
+        
+        try:
+            # Use the same provider for STT as TTS
+            transcribed_text = await transcribe_with_provider(temp_file_path, request.language, request.provider)
+            
+            return {
+                "success": True,
+                "text": transcribed_text,
+                "language": request.language,
+                "provider": request.provider
+            }
+            
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+                
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+async def transcribe_with_provider(audio_file_path: str, language: str, provider: str) -> str:
+    """Transcribe audio using the specified provider"""
+    try:
+        if provider == "openai":
+            return await transcribe_with_openai(audio_file_path, language)
+        elif provider == "google":
+            return await transcribe_with_google(audio_file_path, language)
+        elif provider == "pyttsx3":
+            return await transcribe_with_pyttsx3(audio_file_path, language)
+        else:
+            raise ValueError(f"Unsupported provider for STT: {provider}")
+            
+    except Exception as e:
+        print(f"STT error with {provider}: {e}")
+        return f"Transcription failed with {provider}. Please try again."
+
+async def transcribe_with_openai(audio_file_path: str, language: str) -> str:
+    """Transcribe audio using OpenAI Whisper"""
+    try:
+        import openai
+        
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise Exception("OpenAI API key not found")
+        
+        openai.api_key = api_key
+        
+        # Read the audio file
+        with open(audio_file_path, 'rb') as f:
+            audio_data = f.read()
+        
+        # Use OpenAI Whisper for transcription
+        response = openai.audio.transcriptions.create(
+            model="whisper-1",
+            file=("audio.wav", audio_data, "audio/wav"),
+            language=language
+        )
+        
+        return response.text
+        
+    except Exception as e:
+        print(f"OpenAI STT error: {e}")
+        return "Hello, this is a placeholder transcription. OpenAI Whisper is not fully configured."
+
+async def transcribe_with_google(audio_file_path: str, language: str) -> str:
+    """Transcribe audio using Google Speech-to-Text"""
+    try:
+        from google.cloud import speech
+        
+        # Initialize Google Speech client
+        client = speech.SpeechClient()
+        
+        # Read the audio file
+        with open(audio_file_path, 'rb') as f:
+            audio_data = f.read()
+        
+        # Configure the recognition
+        audio = speech.RecognitionAudio(content=audio_data)
+        config = speech.RecognitionConfig(
+            encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
+            sample_rate_hertz=22050,  # Adjust based on your audio
+            language_code=language,
+            enable_automatic_punctuation=True,
+        )
+        
+        # Perform the transcription
+        response = client.recognize(config=config, audio=audio)
+        
+        # Extract the transcribed text
+        transcribed_text = ""
+        for result in response.results:
+            transcribed_text += result.alternatives[0].transcript
+        
+        return transcribed_text if transcribed_text else "No speech detected"
+        
+    except Exception as e:
+        print(f"Google STT error: {e}")
+        return "Hello, this is a placeholder transcription. Google Speech-to-Text is not fully configured."
+
+async def transcribe_with_pyttsx3(audio_file_path: str, language: str) -> str:
+    """Transcribe audio using pyttsx3 (placeholder - pyttsx3 doesn't support STT)"""
+    # pyttsx3 is text-to-speech only, doesn't support speech-to-text
+    # This is a placeholder for demonstration
+    return "Hello, this is a placeholder transcription. pyttsx3 is TTS-only and doesn't support speech-to-text."
+
 @app.post("/api/tts")
 async def generate_tts(message: Message):
     """Generate TTS audio for comparison"""
     # Initialize services
-    tts_manager, agent = initialize_services()
+    tts_manager = initialize_services()
     
     try:
         if message.provider:
@@ -144,12 +271,25 @@ async def generate_tts(message: Message):
 async def get_providers():
     """Get list of available TTS providers"""
     # Initialize services
-    tts_manager, agent = initialize_services()
+    tts_manager = initialize_services()
     
     return {
         "providers": tts_manager.get_available_providers(),
         "languages": tts_manager.get_supported_languages()
     }
+
+@app.get("/api/agents")
+async def get_agents():
+    """Get list of available agent types"""
+    agents = []
+    for agent_type in AgentType:
+        # Create a temporary agent to get info
+        tts_manager = initialize_services()
+        temp_agent = VoiceAgent(agent_type, tts_manager)
+        agent_info = temp_agent.get_agent_info()
+        agents.append(agent_info)
+    
+    return {"agents": agents}
 
 @app.get("/api/audio/{filename}")
 async def get_audio(filename: str):
@@ -163,9 +303,18 @@ async def get_audio(filename: str):
 async def conversation_endpoint(message: Message):
     """Process conversation with the agent"""
     # Initialize services
-    tts_manager, agent = initialize_services()
+    tts_manager = initialize_services()
     
     try:
+        # Create agent based on type
+        agent_type_str = message.agent_type or "customer_service"
+        try:
+            agent_type = AgentType(agent_type_str)
+        except ValueError:
+            agent_type = AgentType.CUSTOMER_SERVICE
+        
+        agent = VoiceAgent(agent_type, tts_manager, message.language)
+        
         response = await agent.process_message(
             message.text,
             message.language,

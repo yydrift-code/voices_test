@@ -1,29 +1,32 @@
 # RenovaVision TTS Demo - AI Voice Agent Comparison Platform
 
-A comprehensive demo platform for comparing different Text-to-Speech (TTS) providers, featuring an interactive AI voice agent that acts as a RenovaVision presale specialist.
+A comprehensive demo platform for comparing different Text-to-Speech (TTS) and Speech-to-Text (STT) providers, featuring an interactive AI voice agent that acts as a RenovaVision presale specialist with full voice conversation capabilities.
 
 ## Features
 
-- **Interactive AI Voice Agent**: Chat with an AI agent that demonstrates different TTS capabilities
-- **Multi-Provider TTS Comparison**: Compare audio quality across multiple TTS providers
+- **Interactive AI Voice Agent**: Have natural voice conversations with an AI agent
+- **Voice Input & Output**: Full voice conversation interface - speak to the agent and hear responses
+- **Provider-Paired TTS/STT**: Each agent uses the same provider for both speech-to-text and text-to-speech
+- **Multi-Provider Comparison**: Compare audio quality across multiple TTS/STT providers
 - **Multilingual Support**: Support for Belarusian, Polish, Lithuanian, Latvian, and Estonian
-- **Real-time Voice Generation**: Generate and play audio samples instantly
-- **WebSocket Communication**: Real-time chat interface with voice responses
-- **Modern Web Interface**: Beautiful, responsive UI with Bootstrap 5
+- **Real-time Voice Generation**: Generate and play audio responses instantly
+- **WebSocket Communication**: Real-time voice conversation interface
+- **Modern Web Interface**: Beautiful, responsive UI with phone call-like experience
 
-## Supported TTS Providers
+## Supported Providers (TTS + STT)
 
-1. **ElevenLabs** - High-quality, natural-sounding voices with multilingual support
-2. **OpenAI TTS** - Very natural speech synthesis with multiple voice options
-3. **Google Cloud TTS** - Wide language support with SSML capabilities
-4. **Coqui TTS** - Open-source solution with offline capabilities
-5. **pyttsx3** - Completely offline TTS with system voice support
+Each provider handles both text-to-speech and speech-to-text:
+
+1. **OpenAI** - TTS: OpenAI TTS, STT: OpenAI Whisper
+2. **Google Cloud** - TTS: Google Cloud TTS, STT: Google Speech-to-Text  
+3. **pyttsx3** - TTS: Offline system voices, STT: Not available (TTS-only)
 
 ## Prerequisites
 
 - Python 3.8 or higher
 - pip or uv package manager
-- API keys for TTS providers (see Configuration section)
+- API keys for TTS/STT providers (see Configuration section)
+- Microphone access for voice input
 
 ## Installation
 
@@ -46,10 +49,10 @@ A comprehensive demo platform for comparing different Text-to-Speech (TTS) provi
    Create a `.env` file in the project root with your API keys:
    ```env
    OPENAI_API_KEY=your_openai_api_key_here
-   ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
+   GOOGLE_APPLICATION_CREDENTIALS=path/to/your/google-credentials.json
    ```
 
-4. **Optional: Set up Google Cloud credentials** (for Google TTS):
+4. **Optional: Set up Google Cloud credentials** (for Google TTS/STT):
    - Download your Google Cloud service account key
    - Set the `GOOGLE_APPLICATION_CREDENTIALS` environment variable to point to your key file
 
@@ -57,16 +60,13 @@ A comprehensive demo platform for comparing different Text-to-Speech (TTS) provi
 
 ### Required API Keys
 
-- **OpenAI API Key**: Required for OpenAI TTS
+- **OpenAI API Key**: Required for OpenAI TTS and Whisper STT
   - Get from: https://platform.openai.com/api-keys
-- **ElevenLabs API Key**: Required for ElevenLabs TTS
-  - Get from: https://elevenlabs.io/speech-synthesis
+- **Google Cloud**: Requires Google Cloud project and service account for TTS and STT
 
 ### Optional Setup
 
-- **Google Cloud TTS**: Requires Google Cloud project and service account
-- **Coqui TTS**: Automatically downloads models on first use
-- **pyttsx3**: Works offline, no API key required
+- **pyttsx3**: Works offline, no API key required (TTS-only)
 
 ## Usage
 
@@ -80,127 +80,43 @@ A comprehensive demo platform for comparing different Text-to-Speech (TTS) provi
    http://localhost:8000
    ```
 
-3. **Explore the demo**:
-   - Visit the home page to learn about features
-   - Go to `/demo` for the interactive chat interface
-   - Try different languages and TTS providers
-   - Compare audio quality across providers
+3. **Start a voice conversation**:
+   - Choose your preferred language and provider
+   - Click "Start Call" to begin a voice conversation
+   - Click the microphone button to start speaking
+   - Click stop when finished speaking
+   - Listen to the AI agent's voice response
+   - Continue the conversation naturally
+
+## Voice Conversation Features
+
+### Phone Call Interface
+- Start/End call buttons for each language/provider combination
+- Real-time voice recording with visual feedback
+- Automatic speech-to-text processing
+- Instant text-to-speech responses
+- Call status indicators
+
+### Provider Information
+- Clear display of which TTS and STT providers are being used
+- Automatic provider pairing (same provider for both TTS and STT)
+- Status indicators for each provider
+
+### Voice Controls
+- One-click voice recording
+- Visual recording status
+- Automatic audio playback of responses
+- Replay functionality for responses
 
 ## Demo Features
 
-### Interactive Chat
-- Chat with the AI agent in real-time
-- Switch between different TTS providers
+### Voice Conversation
+- Natural voice conversations with AI agents
+- Switch between different TTS/STT providers
 - Support for multiple languages
 - Real-time voice generation and playback
 
-### TTS Comparison
-- Generate the same text with all available providers
-- Compare audio quality side-by-side
-- View provider status and error messages
-- Download generated audio files
-
-### Language Support
-- **English** (en)
-- **Belarusian** (be)
-- **Polish** (pl)
-- **Lithuanian** (lt)
-- **Latvian** (lv)
-- **Estonian** (et)
-
-## API Endpoints
-
-- `GET /` - Home page
-- `GET /demo` - Interactive demo page
-- `WebSocket /ws` - Real-time chat interface
-- `POST /api/tts` - Generate TTS audio
-- `GET /api/providers` - Get available providers
-- `GET /api/audio/{filename}` - Serve audio files
-- `POST /api/conversation` - Process conversation
-
-## Project Structure
-
-```
-voices_test/
-├── main.py                 # FastAPI application
-├── tts_providers.py        # TTS provider manager
-├── voice_agent.py          # AI voice agent logic
-├── requirements.txt        # Python dependencies
-├── .env                    # Environment variables
-├── README.md              # This file
-├── templates/             # HTML templates
-│   ├── index.html         # Home page
-│   └── demo.html          # Demo page
-└── static/                # Static files
-    ├── css/               # Stylesheets
-    │   ├── style.css      # Main styles
-    │   └── demo.css       # Demo page styles
-    ├── js/                # JavaScript
-    │   └── demo.js        # Demo functionality
-    └── audio/             # Generated audio files
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **TTS Provider Not Working**:
-   - Check API keys in `.env` file
-   - Verify internet connection for cloud providers
-   - Check provider-specific error messages
-
-2. **Audio Not Playing**:
-   - Ensure browser supports audio playback
-   - Check browser console for errors
-   - Verify audio files are generated correctly
-
-3. **WebSocket Connection Issues**:
-   - Check if server is running
-   - Verify firewall settings
-   - Check browser console for connection errors
-
-### Provider-Specific Notes
-
-- **ElevenLabs**: Requires valid API key, supports multilingual models
-- **OpenAI**: Requires valid API key, good for English and some other languages
-- **Google Cloud**: Requires service account setup, excellent language support
-- **Coqui TTS**: Downloads models automatically, works offline
-- **pyttsx3**: System-dependent, limited language support
-
-## Development
-
-### Adding New TTS Providers
-
-1. Add provider initialization in `tts_providers.py`
-2. Implement speech generation method
-3. Add provider info to `voice_agent.py`
-4. Update language mappings if needed
-
-### Customizing the Agent
-
-- Modify responses in `voice_agent.py`
-- Add new conversation flows
-- Customize provider information and pricing
-
-## License
-
-This project is for demonstration purposes. Please respect the terms of service for each TTS provider.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## Support
-
-For issues and questions:
-- Check the troubleshooting section
-- Review provider documentation
-- Open an issue on GitHub
-
----
-
-**Note**: This is a demo platform for educational and demonstration purposes. The RenovaVision branding is fictional and used for demonstration only. 
+### Provider Comparison
+- Compare voice quality across different providers
+- Test both speech recognition and speech synthesis
+- View provider status and error messages 
