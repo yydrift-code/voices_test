@@ -258,6 +258,20 @@
                             <!-- Provider info will be populated by JavaScript -->
                         </div>
                         
+                        <div class="timing-metrics" id="timingMetrics" style="font-size: 11px; color: #6c757d; margin-top: 8px; display: none;">
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <strong>TTS:</strong> <span id="tts-timing">-</span>
+                                </div>
+                                <div class="col-4">
+                                    <strong>LLM:</strong> <span id="llm-timing">-</span>
+                                </div>
+                                <div class="col-4">
+                                    <strong>STT:</strong> <span id="stt-timing">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="audio-controls" id="audioControls" style="display: none;">
                             <audio id="audioPlayer" class="audio-player" controls></audio>
                             <div class="control-buttons">

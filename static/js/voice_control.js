@@ -280,6 +280,12 @@ class VoiceAgentControl {
             <strong>STT Provider:</strong> ${sttProvider}
         `;
         
+        // Show timing metrics
+        const timingMetrics = document.getElementById('timingMetrics');
+        if (timingMetrics) {
+            timingMetrics.style.display = 'block';
+        }
+        
         // Show push-to-talk button
         this.buttonContainer.style.display = 'block';
     }
@@ -291,6 +297,17 @@ class VoiceAgentControl {
         this.voiceStatus.textContent = 'Click "Start Call" to begin voice conversation';
         this.voiceStatus.className = 'voice-status';
         this.providerInfo.innerHTML = '';
+        
+        // Hide timing metrics
+        const timingMetrics = document.getElementById('timingMetrics');
+        if (timingMetrics) {
+            timingMetrics.style.display = 'none';
+        }
+        
+        // Reset timing values
+        document.getElementById('tts-timing').textContent = '-';
+        document.getElementById('llm-timing').textContent = '-';
+        document.getElementById('stt-timing').textContent = '-';
         
         // Hide push-to-talk button
         this.buttonContainer.style.display = 'none';
@@ -343,8 +360,14 @@ class VoiceAgentControl {
     handleWebSocketMessage(data) {
         switch (data.type) {
             case 'agent_response':
+            case 'agent_message':
                 this.addMessage('agent', data.text);
                 this.playAudio(data.audio_file);
+                
+                // Update timing metrics if available
+                if (data.timing_metrics) {
+                    this.updateTimingMetrics(data.timing_metrics);
+                }
                 break;
             case 'error':
                 this.showError(data.error);
@@ -559,6 +582,11 @@ class VoiceAgentControl {
                     // Only add message and send to agent if speech was detected
                     this.addMessage('user', cleanText);
                     
+                    // Update STT timing metric if available
+                    if (result.stt_time) {
+                        this.updateSTTTiming(result.stt_time);
+                    }
+                    
                     // Show agent is thinking
                     this.voiceStatus.textContent = 'Agent is thinking...';
                     this.voiceStatus.className = 'voice-status thinking';
@@ -607,6 +635,47 @@ class VoiceAgentControl {
             binary += String.fromCharCode(bytes[i]);
         }
         return window.btoa(binary);
+    }
+    
+    updateTimingMetrics(timingMetrics) {
+        // Update TTS and LLM timing metrics
+        if (timingMetrics.tts_time) {
+            this.updateTTSTiming(timingMetrics.tts_time);
+        }
+        if (timingMetrics.llm_time) {
+            this.updateLLMTiming(timingMetrics.llm_time);
+        }
+    }
+    
+    updateTTSTiming(ttsTime) {
+        const ttsElement = document.getElementById('tts-timing');
+        if (ttsElement) {
+            ttsElement.textContent = `${ttsTime}ms`;
+        }
+    }
+    
+    updateLLMTiming(llmTime) {
+        const llmElement = document.getElementById('llm-timing');
+        if (llmElement) {
+            llmElement.textContent = `${llmTime}ms`;
+        }
+    }
+    
+    updateSTTTiming(sttTime) {
+        const sttElement = document.getElementById('stt-timing');
+        if (sttElement) {
+            sttElement.textContent = `${sttTime}ms`;
+        }
+    }
+    
+    resetTimingMetrics() {
+        const ttsElement = document.getElementById('tts-timing');
+        const llmElement = document.getElementById('llm-timing');
+        const sttElement = document.getElementById('stt-timing');
+        
+        if (ttsElement) ttsElement.textContent = '-';
+        if (llmElement) llmElement.textContent = '-';
+        if (sttElement) sttElement.textContent = '-';
     }
     
     setupEventListeners() {

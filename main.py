@@ -22,6 +22,15 @@ from voice_agents import VoiceAgent, AgentType
 from dotenv import load_dotenv
 load_dotenv()
 
+# Set Google Cloud credentials if not already set
+if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
+    credentials_path = os.path.join(os.path.dirname(__file__), "long-flash-452213-u9-8ae0b27b310f.json")
+    if os.path.exists(credentials_path):
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
+        print(f"Set GOOGLE_APPLICATION_CREDENTIALS to: {credentials_path}")
+    else:
+        print("Warning: Google Cloud credentials file not found. Google STT/TTS may not work.")
+
 app = FastAPI(title="RenovaVision TTS Demo", description="Compare TTS providers for AI Voice Agents")
 
 # Mount static files and templates
@@ -95,6 +104,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 message_data.get("provider", "openai")
             )
             
+            # Add timing metrics to the response if available
+            if "timing_metrics" in response:
+                response["type"] = "agent_message"
+                response["agent_name"] = response.get("agent_name", "RenovaVision Presale Manager")
+                response["provider"] = response.get("provider", "openai")
+                response["language"] = response.get("language", "en")
+            
             # Send response back
             await websocket.send_text(json.dumps(response))
             
@@ -108,6 +124,8 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.post("/api/speech-to-text")
 async def speech_to_text(request: SpeechToTextRequest):
     """Convert speech to text using the same provider as TTS"""
+    import time
+    
     try:
         # Decode base64 audio data
         audio_data = base64.b64decode(request.audio_data)
@@ -118,14 +136,21 @@ async def speech_to_text(request: SpeechToTextRequest):
             temp_file_path = temp_file.name
         
         try:
+            # Track STT timing
+            stt_start_time = time.time()
+            
             # Use the same provider for STT as TTS
             transcribed_text = await transcribe_with_provider(temp_file_path, request.language, request.provider)
+            
+            stt_end_time = time.time()
+            stt_time = round((stt_end_time - stt_start_time) * 1000, 2)  # Convert to milliseconds
             
             return {
                 "success": True,
                 "text": transcribed_text,
                 "language": request.language,
-                "provider": request.provider
+                "provider": request.provider,
+                "stt_time": stt_time
             }
             
         finally:
@@ -236,6 +261,9 @@ async def transcribe_with_google(audio_file_path: str, language: str) -> str:
         
         return transcribed_text if transcribed_text else ""
         
+    except ImportError as e:
+        print(f"Google Cloud Speech library not available: {e}")
+        return "Hello, this is a placeholder transcription. Google Speech-to-Text library not installed."
     except Exception as e:
         print(f"Google STT error: {e}")
         return "Hello, this is a placeholder transcription. Google Speech-to-Text is not fully configured."

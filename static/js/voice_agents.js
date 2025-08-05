@@ -95,6 +95,12 @@ class VoiceAgentsDemo {
         if (this.isConnected) {
             this.messageInput.disabled = false;
             this.sendButton.disabled = false;
+            
+            // Show timing metrics
+            const timingMetrics = document.getElementById('timingMetrics');
+            if (timingMetrics) {
+                timingMetrics.style.display = 'block';
+            }
         }
         
         // Add system message
@@ -138,6 +144,9 @@ class VoiceAgentsDemo {
             statusElement.innerHTML = '<i class="fas fa-circle text-success"></i> Connected';
         } else {
             statusElement.innerHTML = '<i class="fas fa-circle text-danger"></i> Disconnected';
+            
+            // Reset timing metrics when disconnected
+            this.resetTimingMetrics();
         }
     }
     
@@ -171,6 +180,11 @@ class VoiceAgentsDemo {
         
         if (data.type === 'agent_message') {
             this.addAgentMessage(data.text, data.agent_name, data.provider, data.language, data.audio_data);
+            
+            // Update timing metrics if available
+            if (data.timing_metrics) {
+                this.updateTimingMetrics(data.timing_metrics);
+            }
         } else if (data.type === 'system_message') {
             this.addSystemMessage(data.text);
         }
@@ -413,6 +427,40 @@ class VoiceAgentsDemo {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+    
+    updateTimingMetrics(timingMetrics) {
+        // Update TTS and LLM timing metrics
+        if (timingMetrics.tts_time) {
+            this.updateTTSTiming(timingMetrics.tts_time);
+        }
+        if (timingMetrics.llm_time) {
+            this.updateLLMTiming(timingMetrics.llm_time);
+        }
+    }
+    
+    updateTTSTiming(ttsTime) {
+        const ttsElement = document.getElementById('tts-timing');
+        if (ttsElement) {
+            ttsElement.textContent = `${ttsTime}ms`;
+        }
+    }
+    
+    updateLLMTiming(llmTime) {
+        const llmElement = document.getElementById('llm-timing');
+        if (llmElement) {
+            llmElement.textContent = `${llmTime}ms`;
+        }
+    }
+    
+    resetTimingMetrics() {
+        const ttsElement = document.getElementById('tts-timing');
+        const llmElement = document.getElementById('llm-timing');
+        const sttElement = document.getElementById('stt-timing');
+        
+        if (ttsElement) ttsElement.textContent = '-';
+        if (llmElement) llmElement.textContent = '-';
+        if (sttElement) sttElement.textContent = '-';
     }
 }
 

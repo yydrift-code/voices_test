@@ -96,6 +96,8 @@ Remember: You are having a voice conversation, so keep responses concise and nat
     
     async def process_message(self, text: str, language: str = "en", provider: str = "openai") -> Dict:
         """Process a user message and generate an intelligent response with TTS"""
+        import time
+        
         try:
             # Add message to conversation history
             self.conversation_history.append({
@@ -104,18 +106,27 @@ Remember: You are having a voice conversation, so keep responses concise and nat
                 "language": language
             })
             
+            # Track timing metrics
+            timing_metrics = {}
+            
             # Generate intelligent response using GPT-4o-mini (optimized for speed)
+            llm_start_time = time.time()
             if self.openai_available:
                 response_text = self._generate_llm_response(text, language)
             else:
                 response_text = self._generate_fallback_response(text, language)
+            llm_end_time = time.time()
+            timing_metrics['llm_time'] = round((llm_end_time - llm_start_time) * 1000, 2)  # Convert to milliseconds
             
             # Generate TTS audio (optimized for speed)
+            tts_start_time = time.time()
             audio_data = await self.tts_manager.generate_speech(
                 text=response_text,
                 language=language,
                 provider=provider
             )
+            tts_end_time = time.time()
+            timing_metrics['tts_time'] = round((tts_end_time - tts_start_time) * 1000, 2)  # Convert to milliseconds
             
             # Save audio to file
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -142,7 +153,8 @@ Remember: You are having a voice conversation, so keep responses concise and nat
                 "agent_name": "RenovaVision Presale Manager",
                 "timestamp": datetime.now().isoformat(),
                 "language": language,
-                "provider": provider
+                "provider": provider,
+                "timing_metrics": timing_metrics
             }
             
         except Exception as e:
