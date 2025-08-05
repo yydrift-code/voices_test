@@ -129,12 +129,12 @@ class VoiceAgentsDemo {
             console.log('WebSocket disconnected');
             this.isConnected = false;
             this.updateConnectionStatus(false);
-            this.addSystemMessage('Disconnected from Voice Agent System');
+            this.addSystemMessage('Connection lost. Please refresh the page.');
         };
         
         this.ws.onerror = (error) => {
             console.error('WebSocket error:', error);
-            this.addSystemMessage('Connection error');
+            this.addSystemMessage('Connection error. Please try again.');
         };
     }
     

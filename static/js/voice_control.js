@@ -332,11 +332,13 @@ class VoiceAgentControl {
         this.websocket.onclose = () => {
             this.isConnected = false;
             this.updateConnectionStatus(false);
+            this.showError('Connection lost. Please refresh the page.');
         };
         
         this.websocket.onerror = (error) => {
             console.error('WebSocket error:', error);
             this.updateConnectionStatus(false);
+            this.showError('Connection error. Please try again.');
         };
     }
     
@@ -371,6 +373,7 @@ class VoiceAgentControl {
                 break;
             case 'error':
                 this.showError(data.error);
+                this.resetVoiceStatus();
                 break;
             case 'system_message':
                 this.addMessage('system', data.text);
@@ -419,8 +422,8 @@ class VoiceAgentControl {
             
         } catch (error) {
             console.error('Error playing audio:', error);
-            this.voiceStatus.textContent = 'Press and hold the "Say" button to speak';
-            this.voiceStatus.className = 'voice-status';
+            this.showError('Failed to play audio: ' + error.message);
+            this.resetVoiceStatus();
         }
     }
     
@@ -475,7 +478,7 @@ class VoiceAgentControl {
             
         } catch (error) {
             console.error('Error initializing microphone:', error);
-            this.showError('Failed to initialize microphone. Please check microphone permissions.');
+            this.showError('Failed to initialize microphone: ' + error.message + '. Please check microphone permissions.');
         }
     }
     
@@ -600,6 +603,17 @@ class VoiceAgentControl {
                             agent_type: 'presale_manager'
                         };
                         this.websocket.send(JSON.stringify(data));
+                        
+                        // Set timeout for agent response
+                        setTimeout(() => {
+                            if (this.voiceStatus.textContent === 'Agent is thinking...') {
+                                this.showError('Agent response timeout. Please try again.');
+                                this.resetVoiceStatus();
+                            }
+                        }, 30000); // 30 second timeout
+                    } else {
+                        this.showError('Not connected to agent. Please try again.');
+                        this.resetVoiceStatus();
                     }
                 } else {
                     // No speech detected
@@ -611,19 +625,13 @@ class VoiceAgentControl {
                 }
             } else {
                 this.showError('Failed to transcribe speech: ' + result.error);
-                if (this.activeAgent) {
-                    this.voiceStatus.textContent = 'Press and hold the "Say" button to speak';
-                    this.voiceStatus.className = 'voice-status';
-                }
+                this.resetVoiceStatus();
             }
             
         } catch (error) {
             console.error('Error processing voice input:', error);
-            this.showError('Failed to process voice input');
-            if (this.activeAgent) {
-                this.voiceStatus.textContent = 'Press and hold the "Say" button to speak';
-                this.voiceStatus.className = 'voice-status';
-            }
+            this.showError('Failed to process voice input: ' + error.message);
+            this.resetVoiceStatus();
         }
     }
     
@@ -676,6 +684,13 @@ class VoiceAgentControl {
         if (ttsElement) ttsElement.textContent = '-';
         if (llmElement) llmElement.textContent = '-';
         if (sttElement) sttElement.textContent = '-';
+    }
+    
+    resetVoiceStatus() {
+        if (this.activeAgent) {
+            this.voiceStatus.textContent = 'Press and hold the "Say" button to speak';
+            this.voiceStatus.className = 'voice-status';
+        }
     }
     
     setupEventListeners() {
@@ -741,21 +756,29 @@ class VoiceAgentControl {
         // Create a temporary error message
         const errorDiv = document.createElement('div');
         errorDiv.className = 'alert alert-danger alert-dismissible fade show';
+        errorDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            max-width: 400px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        `;
         errorDiv.innerHTML = `
-            ${message}
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Error:</strong> ${message}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
         
-        // Insert at the top of the page
-        const container = document.querySelector('.container-fluid');
-        container.insertBefore(errorDiv, container.firstChild);
+        // Add to body
+        document.body.appendChild(errorDiv);
         
-        // Auto-remove after 5 seconds
+        // Auto-remove after 8 seconds
         setTimeout(() => {
             if (errorDiv.parentNode) {
                 errorDiv.remove();
             }
-        }, 5000);
+        }, 8000);
     }
 }
 

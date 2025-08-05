@@ -61,8 +61,10 @@ class VoiceAgent:
 
 IMPORTANT: Always respond in {language_name} language, not English.
 
+CRITICAL: Keep all responses SHORT - maximum 15 words. Be concise and direct.
+
 Your responsibilities:
-1. Introduce RenovaVision as a leading AI voice technology company
+1. Introduce RenovaVision as a leading AI technology company
 2. Explain the benefits of AI voice agents for businesses
 3. Showcase multilingual capabilities (Belarusian, Polish, Lithuanian, Latvian, Estonian, English)
 4. Discuss different TTS providers and their strengths
@@ -70,17 +72,17 @@ Your responsibilities:
 6. Provide technical guidance and best practices
 
 Key talking points:
-- RenovaVision specializes in AI voice agents for customer service, sales, and support
+- RenovaVision specializes in conversational AI agents. They provide textual and voice agents, video avatars
 - Our agents can speak multiple languages fluently
 - We support various TTS providers (OpenAI, Google, pyttsx3)
 - Easy integration and customization options
 - Cost-effective solutions for businesses of all sizes
 
 Tone: Professional, enthusiastic, helpful, and knowledgeable
-Style: Conversational but informative, focus on customer needs
+Style: Very concise and direct, focus on customer needs
 Language: Always respond in {language_name}
 
-Remember: You are having a voice conversation, so keep responses concise and natural for speech."""
+Remember: You are having a voice conversation. Keep responses under 15 words maximum."""
         
         return f"You are a helpful AI assistant. Respond in {language_name} language."
     
@@ -189,7 +191,7 @@ Remember: You are having a voice conversation, so keep responses concise and nat
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=messages,
-                max_tokens=150,  # Reduced for faster response
+                max_tokens=50,  # Very short responses - max 15 words
                 temperature=0.5,  # Lower temperature for more focused responses
                 presence_penalty=0.1,  # Reduce repetition
                 frequency_penalty=0.1   # Reduce repetition
@@ -210,59 +212,59 @@ Remember: You are having a voice conversation, so keep responses concise and nat
         
         if any(word in user_message_lower for word in ["hello", "hi", "hey", "start", "begin"]):
             if language == "be":
-                return "Прывітанне! Я прадажнік RenovaVision AI Voice Solutions. Я дапамагу вам даведацца пра нашы галасавыя AI агенты. Што вас цікавіць?"
+                return "Прывітанне! Я прадажнік RenovaVision. Што вас цікавіць?"
             elif language == "pl":
-                return "Cześć! Jestem sprzedawcą RenovaVision AI Voice Solutions. Pomogę Ci poznać nasze głosowe agenty AI. Co Cię interesuje?"
+                return "Cześć! Jestem sprzedawcą RenovaVision. Co Cię interesuje?"
             elif language == "lt":
-                return "Labas! Aš esu RenovaVision AI Voice Solutions pardavėjas. Padėsiu jums susipažinti su mūsų balso AI agentais. Kas jus domina?"
+                return "Labas! Aš esu RenovaVision pardavėjas. Kas jus domina?"
             elif language == "lv":
-                return "Sveiki! Esmu RenovaVision AI Voice Solutions pārdevējs. Palīdzēšu jums iepazīties ar mūsu balss AI aģentiem. Kas jūs interesē?"
+                return "Sveiki! Esmu RenovaVision pārdevējs. Kas jūs interesē?"
             elif language == "et":
-                return "Tere! Olen RenovaVision AI Voice Solutions müügimees. Aitan teil tutvuda meie hääl AI agentidega. Mis teid huvitab?"
+                return "Tere! Olen RenovaVision müügimees. Mis teid huvitab?"
             else:
-                return "Hello! I'm a RenovaVision AI Voice Solutions sales representative. I'll help you learn about our voice AI agents. What interests you?"
+                return "Hello! I'm a RenovaVision sales rep. What interests you?"
         
         elif any(word in user_message_lower for word in ["price", "cost", "pricing", "budget"]):
             if language == "be":
-                return "Нашы цэны залежаць ад вашага выкарыстання і патрабаванняў. Мы прапануем гнуткія планы для розных памераў бізнесу. Які ў вас бюджэт?"
+                return "Цэны залежаць ад выкарыстання. Які ў вас бюджэт?"
             elif language == "pl":
-                return "Nasze ceny zależą od Twojego użycia i wymagań. Oferujemy elastyczne plany dla firm różnej wielkości. Jaki masz budżet?"
+                return "Ceny zależą od użycia. Jaki masz budżet?"
             elif language == "lt":
-                return "Mūsų kainos priklauso nuo jūsų naudojimo ir reikalavimų. Siūlome lanksčius planus skirtingo dydžio įmonėms. Koks jūsų biudžetas?"
+                return "Kainos priklauso nuo naudojimo. Koks jūsų biudžetas?"
             elif language == "lv":
-                return "Mūsu cenas ir atkarīgas no jūsu lietošanas un prasībām. Piedāvājam elastīgus plānus dažāda izmēra uzņēmumiem. Kāds ir jūsu budžets?"
+                return "Cenas atkarīgas no lietošanas. Kāds jūsu budžets?"
             elif language == "et":
-                return "Meie hinnad sõltuvad teie kasutamisest ja nõuetest. Pakume paindlikke plaane erineva suurusega ettevõtetele. Mis on teie eelarve?"
+                return "Hinnad sõltuvad kasutamisest. Mis on teie eelarve?"
             else:
-                return "Our pricing depends on your usage and requirements. We offer flexible plans for businesses of all sizes. What's your budget?"
+                return "Pricing depends on usage. What's your budget?"
         
         elif any(word in user_message_lower for word in ["language", "multilingual", "belarusian", "polish", "lithuanian", "latvian", "estonian"]):
             if language == "be":
-                return "Нашы AI агенты могуць гаварыць на беларускай, польскай, літоўскай, латышскай, эстонскай і англійскай мовах. Якую мову вы хочаце пачуць?"
+                return "Мы падтрымліваем 6 моў. Якую хочаце пачуць?"
             elif language == "pl":
-                return "Nasi agenci AI mogą mówić po białorusku, polsku, litewsku, łotewsku, estońsku i angielsku. Jaki język chcesz usłyszeć?"
+                return "Obsługujemy 6 języków. Który chcesz usłyszeć?"
             elif language == "lt":
-                return "Mūsų AI agentai gali kalbėti baltarusių, lenkų, lietuvių, latvių, estų ir anglų kalbomis. Kokią kalbą norite išgirsti?"
+                return "Palaikome 6 kalbas. Kurią norite išgirsti?"
             elif language == "lv":
-                return "Mūsu AI aģenti var runāt baltkrievu, poļu, lietuviešu, latviešu, igauņu un angļu valodās. Kādu valodu vēlaties dzirdēt?"
+                return "Atbalstām 6 valodas. Kādu vēlaties dzirdēt?"
             elif language == "et":
-                return "Meie AI agendid saavad rääkida valgevene, poola, leedu, läti, eesti ja inglise keeles. Millist keelt soovite kuulda?"
+                return "Toetame 6 keelt. Millist soovite kuulda?"
             else:
-                return "Our AI agents can speak Belarusian, Polish, Lithuanian, Latvian, Estonian, and English. Which language would you like to hear?"
+                return "We support 6 languages. Which would you like to hear?"
         
         else:
             if language == "be":
-                return "Дзякуй за ваш цікавасць да RenovaVision! Я магу дапамагчы вам з інфармацыяй пра нашы галасавыя AI рашэнні. Што вас цікавіць найбольш?"
+                return "Дзякуй! Што вас цікавіць?"
             elif language == "pl":
-                return "Dziękuję za zainteresowanie RenovaVision! Mogę pomóc Ci z informacjami o naszych głosowych rozwiązaniach AI. Co Cię najbardziej interesuje?"
+                return "Dziękuję! Co Cię interesuje?"
             elif language == "lt":
-                return "Ačiū už susidomėjimą RenovaVision! Galiu padėti jums su informacija apie mūsų balso AI sprendimus. Kas jus labiausiai domina?"
+                return "Ačiū! Kas jus domina?"
             elif language == "lv":
-                return "Paldies par interesi par RenovaVision! Es varu palīdzēt jums ar informāciju par mūsu balss AI risinājumiem. Kas jūs visvairāk interesē?"
+                return "Paldies! Kas jūs interesē?"
             elif language == "et":
-                return "Tänan huvi RenovaVision vastu! Saan aidata teid meie hääl AI lahenduste kohta. Mis teid kõige rohkem huvitab?"
+                return "Tänan! Mis teid huvitab?"
             else:
-                return "Thank you for your interest in RenovaVision! I can help you with information about our voice AI solutions. What interests you most?"
+                return "Thanks! What interests you?"
     
     def get_conversation_history(self) -> List[Dict]:
         """Get the conversation history"""
