@@ -359,13 +359,36 @@ class VoiceAgentControl {
         if (!audioFile) return;
         
         const audioUrl = `/api/audio/${audioFile}`;
+        
+        // Preload audio for faster playback
+        this.audioPlayer.preload = 'auto';
         this.audioPlayer.src = audioUrl;
         this.audioControls.style.display = 'flex';
         
+        // Show status while loading
+        this.voiceStatus.textContent = 'Loading audio...';
+        this.voiceStatus.className = 'voice-status processing';
+        
         try {
+            // Wait for audio to be ready
+            await new Promise((resolve, reject) => {
+                this.audioPlayer.oncanplaythrough = resolve;
+                this.audioPlayer.onerror = reject;
+                // Timeout after 5 seconds
+                setTimeout(() => reject(new Error('Audio loading timeout')), 5000);
+            });
+            
+            // Play audio
             await this.audioPlayer.play();
+            
+            // Update status
+            this.voiceStatus.textContent = 'Press and hold the "Say" button to speak';
+            this.voiceStatus.className = 'voice-status';
+            
         } catch (error) {
             console.error('Error playing audio:', error);
+            this.voiceStatus.textContent = 'Press and hold the "Say" button to speak';
+            this.voiceStatus.className = 'voice-status';
         }
     }
     
@@ -485,8 +508,9 @@ class VoiceAgentControl {
     
     async processAudioAsync(audioBlob) {
         try {
-            
-
+            // Show processing status immediately
+            this.voiceStatus.textContent = 'Processing speech...';
+            this.voiceStatus.className = 'voice-status processing';
             
             // Convert blob to base64
             const arrayBuffer = await audioBlob.arrayBuffer();
@@ -526,6 +550,10 @@ class VoiceAgentControl {
                     // Only add message and send to agent if speech was detected
                     this.addMessage('user', cleanText);
                     
+                    // Show agent is thinking
+                    this.voiceStatus.textContent = 'Agent is thinking...';
+                    this.voiceStatus.className = 'voice-status thinking';
+                    
                     // Send to agent via WebSocket
                     if (this.isConnected && this.activeAgent) {
                         const data = {
@@ -539,11 +567,10 @@ class VoiceAgentControl {
                 } else {
                     // No speech detected
                     console.log('No speech detected');
-                }
-                
-                if (this.activeAgent) {
-                    this.voiceStatus.textContent = 'Press and hold the "Say" button to speak';
-                    this.voiceStatus.className = 'voice-status';
+                    if (this.activeAgent) {
+                        this.voiceStatus.textContent = 'Press and hold the "Say" button to speak';
+                        this.voiceStatus.className = 'voice-status';
+                    }
                 }
             } else {
                 this.showError('Failed to transcribe speech: ' + result.error);

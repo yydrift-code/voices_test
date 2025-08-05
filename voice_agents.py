@@ -104,13 +104,13 @@ Remember: You are having a voice conversation, so keep responses concise and nat
                 "language": language
             })
             
-            # Generate intelligent response using GPT-4o-mini
+            # Generate intelligent response using GPT-4o-mini (optimized for speed)
             if self.openai_available:
                 response_text = self._generate_llm_response(text, language)
             else:
                 response_text = self._generate_fallback_response(text, language)
             
-            # Generate TTS audio
+            # Generate TTS audio (optimized for speed)
             audio_data = await self.tts_manager.generate_speech(
                 text=response_text,
                 language=language,
@@ -172,13 +172,15 @@ Remember: You are having a voice conversation, so keep responses concise and nat
             # Add current user message
             messages.append({"role": "user", "content": user_message})
             
-            # Call OpenAI API using new v1.0.0+ syntax
+            # Call OpenAI API using new v1.0.0+ syntax (optimized for speed)
             client = openai.OpenAI()
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=messages,
-                max_tokens=300,
-                temperature=0.7
+                max_tokens=150,  # Reduced for faster response
+                temperature=0.5,  # Lower temperature for more focused responses
+                presence_penalty=0.1,  # Reduce repetition
+                frequency_penalty=0.1   # Reduce repetition
             )
             
             return response.choices[0].message.content.strip()

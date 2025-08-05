@@ -452,7 +452,13 @@ body {
 .voice-status.processing {
     background: #ffc107;
     color: #212529;
-    animation: pulse-yellow 1s infinite;
+    animation: pulse-yellow 0.8s infinite;
+}
+
+.voice-status.thinking {
+    background: #17a2b8;
+    color: white;
+    animation: pulse-blue 0.8s infinite;
 }
 
 @keyframes pulse-red {
@@ -464,6 +470,12 @@ body {
 @keyframes pulse-yellow {
     0% { opacity: 1; }
     50% { opacity: 0.8; }
+    100% { opacity: 1; }
+}
+
+@keyframes pulse-blue {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
     100% { opacity: 1; }
 }
 
