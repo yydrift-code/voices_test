@@ -139,15 +139,35 @@ async def speech_to_text(request: SpeechToTextRequest):
             "error": str(e)
         }
 
+def map_language_for_stt(language: str, provider: str) -> str:
+    """Map language codes for different STT providers"""
+    if provider == "google":
+        # Google STT language mapping
+        mapping = {
+            "be": "en-US",  # Belarusian not supported, use English
+            "pl": "pl-PL",
+            "lt": "lt-LT", 
+            "lv": "lv-LV",
+            "et": "et-EE",
+            "en": "en-US"
+        }
+        return mapping.get(language, "en-US")
+    else:
+        # Other providers use the original language code
+        return language
+
 async def transcribe_with_provider(audio_file_path: str, language: str, provider: str) -> str:
     """Transcribe audio using the specified provider"""
     try:
+        # Map language for the specific provider
+        mapped_language = map_language_for_stt(language, provider)
+        
         if provider == "openai":
-            return await transcribe_with_openai(audio_file_path, language)
+            return await transcribe_with_openai(audio_file_path, mapped_language)
         elif provider == "google":
-            return await transcribe_with_google(audio_file_path, language)
+            return await transcribe_with_google(audio_file_path, mapped_language)
         elif provider == "pyttsx3":
-            return await transcribe_with_pyttsx3(audio_file_path, language)
+            return await transcribe_with_pyttsx3(audio_file_path, mapped_language)
         else:
             raise ValueError(f"Unsupported provider for STT: {provider}")
             

@@ -389,6 +389,84 @@ body {
     border-color: #667eea;
 }
 
+/* Push-to-Talk Button Styles */
+.push-to-talk-container {
+    text-align: center;
+    margin: 20px 0;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+}
+
+.push-to-talk-btn {
+    width: 120px !important;
+    height: 120px !important;
+    border-radius: 50% !important;
+    border: none !important;
+    font-size: 18px !important;
+    font-weight: bold !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 5px !important;
+}
+
+.push-to-talk-btn:hover {
+    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.3) !important;
+}
+
+.push-to-talk-btn:active {
+    transform: scale(0.95) !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+}
+
+.push-to-talk-btn i {
+    font-size: 24px;
+    margin-bottom: 5px;
+}
+
+/* Voice Status Styles */
+.voice-status {
+    padding: 10px;
+    border-radius: 8px;
+    font-weight: 600;
+    text-align: center;
+    margin: 10px 0;
+    transition: all 0.3s ease;
+}
+
+.voice-status.recording {
+    background: #dc3545;
+    color: white;
+    animation: pulse-red 1s infinite;
+}
+
+.voice-status.processing {
+    background: #ffc107;
+    color: #212529;
+    animation: pulse-yellow 1s infinite;
+}
+
+@keyframes pulse-red {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+@keyframes pulse-yellow {
+    0% { opacity: 1; }
+    50% { opacity: 0.8; }
+    100% { opacity: 1; }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .container-fluid {
@@ -408,6 +486,16 @@ body {
     
     .message-content {
         max-width: 85%;
+    }
+    
+    .push-to-talk-btn {
+        width: 100px !important;
+        height: 100px !important;
+        font-size: 16px !important;
+    }
+    
+    .push-to-talk-btn i {
+        font-size: 20px;
     }
 }
 

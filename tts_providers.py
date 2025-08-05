@@ -36,7 +36,7 @@ class TTSProviderManager:
                 "be": "be", "pl": "pl", "lt": "lt", "lv": "lv", "et": "et", "en": "en"
             },
             "google": {
-                "be": "be-BY", "pl": "pl-PL", "lt": "lt-LT", "lv": "lv-LV", "et": "et-EE", "en": "en-US"
+                "be": "en-US", "pl": "pl-PL", "lt": "lt-LT", "lv": "lv-LV", "et": "et-EE", "en": "en-US"
             },
             "pyttsx3": {
                 "be": "be", "pl": "pl", "lt": "lt", "lv": "lv", "et": "et", "en": "en"
@@ -167,10 +167,34 @@ class TTSProviderManager:
             
             synthesis_input = texttospeech.SynthesisInput(text=text)
             
-            voice = texttospeech.VoiceSelectionParams(
-                language_code=language,
-                ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL
-            )
+            # Try to get available voices for the language
+            try:
+                voices_response = client.list_voices(language_code=language)
+                available_voices = voices_response.voices
+                
+                # Select the first available voice
+                if available_voices:
+                    voice_name = available_voices[0].name
+                else:
+                    # No voices found for this language, use language code only
+                    voice_name = None
+            except Exception:
+                # If list_voices fails, use language code only
+                voice_name = None
+            
+            # Create voice selection params
+            if voice_name:
+                voice = texttospeech.VoiceSelectionParams(
+                    language_code=language,
+                    name=voice_name
+                    # Don't specify gender to avoid conflicts
+                )
+            else:
+                # Use language code only, let Google choose the voice
+                voice = texttospeech.VoiceSelectionParams(
+                    language_code=language
+                    # Don't specify gender to avoid conflicts
+                )
             
             audio_config = texttospeech.AudioConfig(
                 audio_encoding=texttospeech.AudioEncoding.LINEAR16
@@ -192,10 +216,34 @@ class TTSProviderManager:
             
             synthesis_input = texttospeech.SynthesisInput(text=text)
             
-            voice = texttospeech.VoiceSelectionParams(
-                language_code=language,
-                ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL
-            )
+            # Try to get available voices for the language
+            try:
+                voices_response = client.list_voices(language_code=language)
+                available_voices = voices_response.voices
+                
+                # Select the first available voice
+                if available_voices:
+                    voice_name = available_voices[0].name
+                else:
+                    # No voices found for this language, use language code only
+                    voice_name = None
+            except Exception:
+                # If list_voices fails, use language code only
+                voice_name = None
+            
+            # Create voice selection params
+            if voice_name:
+                voice = texttospeech.VoiceSelectionParams(
+                    language_code=language,
+                    name=voice_name
+                    # Don't specify gender to avoid conflicts
+                )
+            else:
+                # Use language code only, let Google choose the voice
+                voice = texttospeech.VoiceSelectionParams(
+                    language_code=language
+                    # Don't specify gender to avoid conflicts
+                )
             
             audio_config = texttospeech.AudioConfig(
                 audio_encoding=texttospeech.AudioEncoding.LINEAR16

@@ -7,19 +7,13 @@ class VoiceAgentControl {
         this.languages = {};
         this.isConnected = false;
         
-        // Voice recording properties
+        // Voice recording properties for push-to-talk
         this.mediaRecorder = null;
         this.audioChunks = [];
         this.isRecording = false;
         this.stream = null;
-        this.recordingInterval = null;
-        this.processingQueue = []; // Queue for processing multiple audio inputs
-        this.isProcessing = false; // Flag to track if we're currently processing
-        this.silenceTimer = null; // Timer for detecting silence
-        this.lastAudioLevel = 0; // Track audio levels for silence detection
-        this.audioContext = null; // For audio analysis
-        this.analyser = null; // For audio analysis
-        this.microphone = null; // For audio analysis
+        this.isButtonPressed = false; // Track if Say button is pressed
+        this.lastProcessingTime = 0; // Prevent rapid successive processing
         
         this.initializeElements();
         this.loadData();
@@ -42,6 +36,49 @@ class VoiceAgentControl {
         this.voiceStatus = document.getElementById('voiceStatus');
         this.callStatus = document.getElementById('callStatus');
         this.providerInfo = document.getElementById('providerInfo');
+        
+        // Create push-to-talk button
+        this.createPushToTalkButton();
+    }
+    
+    createPushToTalkButton() {
+        // Create the Say button container
+        const buttonContainer = document.createElement('div');
+        buttonContainer.className = 'push-to-talk-container';
+        buttonContainer.style.cssText = `
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        `;
+        
+        // Create the Say button
+        this.sayButton = document.createElement('button');
+        this.sayButton.id = 'sayButton';
+        this.sayButton.className = 'btn btn-lg btn-primary push-to-talk-btn';
+        this.sayButton.innerHTML = '<i class="fas fa-microphone"></i> Say';
+        this.sayButton.style.cssText = `
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: none;
+            font-size: 18px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        `;
+        
+        // Add button to container
+        buttonContainer.appendChild(this.sayButton);
+        
+        // Add container to conversation panel
+        if (this.conversationPanel) {
+            this.conversationPanel.appendChild(buttonContainer);
+        }
+        
+        this.buttonContainer = buttonContainer;
     }
     
     async checkMicrophonePermission() {
@@ -163,22 +200,16 @@ class VoiceAgentControl {
         this.connectWebSocket();
         
         // Add welcome message
-        this.addMessage('agent', `Hello! I'm your RenovaVision AI Voice Solutions presale manager. I can help you explore our voice AI agents in ${languageName}. How can I assist you today?`);
+        this.addMessage('agent', `Hello! I'm your RenovaVision AI Voice Solutions presale manager. I can help you explore our voice AI agents in ${languageName}. Press and hold the "Say" button to speak!`);
         
-        // Start automatic voice recording
-        await this.startAutomaticRecording();
+        // Initialize microphone for push-to-talk
+        await this.initializeMicrophone();
     }
     
     endCall() {
         // Stop recording if active
         if (this.isRecording) {
             this.stopRecording();
-        }
-        
-        // Clear recording interval
-        if (this.recordingInterval) {
-            clearInterval(this.recordingInterval);
-            this.recordingInterval = null;
         }
         
         // Stop and cleanup media stream
@@ -191,20 +222,8 @@ class VoiceAgentControl {
         this.mediaRecorder = null;
         this.audioChunks = [];
         this.isRecording = false;
-        this.processingQueue = [];
-        this.isProcessing = false;
-        
-        // Clean up audio analysis
-        if (this.silenceTimer) {
-            clearTimeout(this.silenceTimer);
-            this.silenceTimer = null;
-        }
-        if (this.audioContext) {
-            this.audioContext.close();
-            this.audioContext = null;
-        }
-        this.analyser = null;
-        this.microphone = null;
+        this.isButtonPressed = false;
+        this.lastProcessingTime = 0;
         
         // Reset button states
         this.enableAllButtons();
@@ -243,7 +262,7 @@ class VoiceAgentControl {
         this.conversationPanel.style.display = 'block';
         this.activeAgentInfo.textContent = `${this.activeAgent.languageName} - ${this.activeAgent.provider}`;
         this.callStatus.style.display = 'flex';
-        this.voiceStatus.textContent = 'Starting continuous voice conversation...';
+        this.voiceStatus.textContent = 'Press and hold the "Say" button to speak';
         
         // Show provider info
         const sttProvider = this.activeAgent.provider === 'pyttsx3' ? 'Not available (TTS-only)' : this.activeAgent.provider;
@@ -251,6 +270,9 @@ class VoiceAgentControl {
             <strong>TTS Provider:</strong> ${this.activeAgent.provider} | 
             <strong>STT Provider:</strong> ${sttProvider}
         `;
+        
+        // Show push-to-talk button
+        this.buttonContainer.style.display = 'block';
     }
     
     hideConversationPanel() {
@@ -260,6 +282,9 @@ class VoiceAgentControl {
         this.voiceStatus.textContent = 'Click "Start Call" to begin voice conversation';
         this.voiceStatus.className = 'voice-status';
         this.providerInfo.innerHTML = '';
+        
+        // Hide push-to-talk button
+        this.buttonContainer.style.display = 'none';
     }
     
     connectWebSocket() {
@@ -344,7 +369,15 @@ class VoiceAgentControl {
         }
     }
     
-    async startAutomaticRecording() {
+    stopAgentSpeech() {
+        // Pause the audio player if it's currently playing
+        if (this.audioPlayer && !this.audioPlayer.paused) {
+            this.audioPlayer.pause();
+            console.log('Agent speech stopped by user');
+        }
+    }
+    
+    async initializeMicrophone() {
         try {
             this.stream = await navigator.mediaDevices.getUserMedia({ 
                 audio: {
@@ -354,9 +387,6 @@ class VoiceAgentControl {
                     noiseSuppression: true
                 } 
             });
-            
-            // Set up audio analysis for silence detection
-            this.setupAudioAnalysis();
             
             // Try to use WAV format if supported, otherwise fall back to default
             const mimeType = MediaRecorder.isTypeSupported('audio/wav') 
@@ -372,47 +402,25 @@ class VoiceAgentControl {
                 this.audioChunks.push(event.data);
             };
             
-            this.mediaRecorder.onstop = async () => {
+            this.mediaRecorder.onstop = () => {
+                // Prevent rapid successive processing calls
+                const now = Date.now();
+                if (now - this.lastProcessingTime < 100) {
+                    console.log('Skipping rapid successive processing call');
+                    return;
+                }
+                this.lastProcessingTime = now;
+                
                 const audioBlob = new Blob(this.audioChunks, { type: 'audio/wav' });
                 this.audioChunks = []; // Clear chunks for next recording
                 
-                // Add to processing queue instead of processing immediately
-                this.processingQueue.push(audioBlob);
-                this.processQueue();
-                
-                // Immediately start the next recording session
-                if (this.activeAgent && this.isConnected) {
-                    this.startRecording();
-                }
+                // Process the recorded audio immediately
+                this.processVoiceInput(audioBlob);
             };
             
-            // Start initial recording
-            this.startRecording();
-            
-            // Set up continuous recording - restart immediately when recording stops
-            this.recordingInterval = setInterval(() => {
-                if (this.activeAgent && this.isConnected && !this.isRecording) {
-                    this.startRecording();
-                }
-            }, 100); // Check every 100ms for continuous recording
-            
         } catch (error) {
-            console.error('Error starting automatic recording:', error);
-            this.showError('Failed to start voice recording. Please check microphone permissions.');
-        }
-    }
-    
-    setupAudioAnalysis() {
-        try {
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            this.analyser = this.audioContext.createAnalyser();
-            this.analyser.fftSize = 256;
-            this.analyser.smoothingTimeConstant = 0.8;
-            
-            this.microphone = this.audioContext.createMediaStreamSource(this.stream);
-            this.microphone.connect(this.analyser);
-        } catch (error) {
-            console.warn('Audio analysis not supported, falling back to timer-based recording');
+            console.error('Error initializing microphone:', error);
+            this.showError('Failed to initialize microphone. Please check microphone permissions.');
         }
     }
     
@@ -420,119 +428,69 @@ class VoiceAgentControl {
         if (this.mediaRecorder && !this.isRecording && this.activeAgent) {
             this.mediaRecorder.start();
             this.isRecording = true;
-            this.voiceStatus.textContent = 'Listening continuously... Speak anytime';
+            this.voiceStatus.textContent = 'Listening... Release button to send';
             this.voiceStatus.className = 'voice-status recording';
             
-            // Start silence detection
-            this.startSilenceDetection();
-            
-            // Fallback: stop recording after 10 seconds maximum
-            setTimeout(() => {
-                if (this.isRecording && this.activeAgent) {
-                    this.stopRecording();
-                }
-            }, 10000);
+            // Update button appearance
+            this.sayButton.style.backgroundColor = '#dc3545';
+            this.sayButton.style.transform = 'scale(0.95)';
+            this.sayButton.innerHTML = '<i class="fas fa-microphone-slash"></i> Listening';
         }
-    }
-    
-    startSilenceDetection() {
-        if (!this.analyser) {
-            return; // Fall back to timer-based recording
-        }
-        
-        const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
-        
-        const checkAudioLevel = () => {
-            if (!this.isRecording || !this.activeAgent) {
-                return;
-            }
-            
-            this.analyser.getByteFrequencyData(dataArray);
-            
-            // Calculate average audio level
-            let sum = 0;
-            for (let i = 0; i < dataArray.length; i++) {
-                sum += dataArray[i];
-            }
-            const averageLevel = sum / dataArray.length;
-            
-            // Update last audio level
-            this.lastAudioLevel = averageLevel;
-            
-            // Check if audio level is above threshold (speech detected)
-            if (averageLevel > 10) { // Adjust threshold as needed
-                // Reset silence timer
-                if (this.silenceTimer) {
-                    clearTimeout(this.silenceTimer);
-                }
-                this.silenceTimer = setTimeout(() => {
-                    if (this.isRecording && this.activeAgent) {
-                        console.log('Silence detected, stopping recording');
-                        this.stopRecording();
-                    }
-                }, 1500); // Wait 1.5 seconds of silence before stopping
-            }
-            
-            // Continue monitoring
-            if (this.isRecording) {
-                requestAnimationFrame(checkAudioLevel);
-            }
-        };
-        
-        checkAudioLevel();
     }
     
     stopRecording() {
         if (this.mediaRecorder && this.isRecording) {
-            // Clear silence timer
-            if (this.silenceTimer) {
-                clearTimeout(this.silenceTimer);
-                this.silenceTimer = null;
-            }
-            
             this.mediaRecorder.stop();
             this.isRecording = false;
-            this.voiceStatus.textContent = 'Listening continuously... Speak anytime';
-            this.voiceStatus.className = 'voice-status';
+            this.voiceStatus.textContent = 'Processing...';
+            this.voiceStatus.className = 'voice-status processing';
+            
+            // Update button appearance
+            this.sayButton.style.backgroundColor = '';
+            this.sayButton.style.transform = '';
+            this.sayButton.innerHTML = '<i class="fas fa-microphone"></i> Say';
         }
     }
     
-    async processQueue() {
-        // If already processing or no items in queue, return
-        if (this.isProcessing || this.processingQueue.length === 0) {
+    processVoiceInput(audioBlob) {
+        // Check if call is still active
+        if (!this.activeAgent) {
+            console.log('Call ended, skipping voice processing');
             return;
         }
         
-        this.isProcessing = true;
-        
-        while (this.processingQueue.length > 0) {
-            const audioBlob = this.processingQueue.shift();
-            await this.processVoiceInput(audioBlob);
+        // Check if audio blob has content
+        if (audioBlob.size === 0) {
+            console.log('Empty audio blob, skipping processing');
+            if (this.activeAgent) {
+                this.voiceStatus.textContent = 'Press and hold the "Say" button to speak';
+            }
+            return;
         }
         
-        this.isProcessing = false;
+        // Check minimum audio duration for OpenAI STT (minimum 0.1 seconds)
+        // For a typical WAV file at 44.1kHz, 16-bit, mono: 0.1s ≈ 8,820 bytes
+        const minSize = 10000; // Conservative minimum size for ~0.1s audio
+        if (audioBlob.size < minSize) {
+            console.log('Audio too short for OpenAI STT (minimum 0.1s), skipping processing');
+            if (this.activeAgent) {
+                this.voiceStatus.textContent = 'Press and hold the "Say" button to speak';
+            }
+            return;
+        }
+        
+        // Process the audio asynchronously
+        this.processAudioAsync(audioBlob);
     }
     
-    async processVoiceInput(audioBlob) {
+    async processAudioAsync(audioBlob) {
         try {
-            // Check if call is still active
-            if (!this.activeAgent) {
-                console.log('Call ended, skipping voice processing');
-                return;
-            }
             
-            // Check if audio blob has content
-            if (audioBlob.size === 0) {
-                console.log('Empty audio blob, skipping processing');
-                if (this.activeAgent) {
-                    this.voiceStatus.textContent = 'Listening continuously... Speak anytime';
-                }
-                return;
-            }
+
             
             // Convert blob to base64
             const arrayBuffer = await audioBlob.arrayBuffer();
-            const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+            const base64Audio = this._arrayBufferToBase64(arrayBuffer);
             
             // Send to backend for speech-to-text processing
             const response = await fetch('/api/speech-to-text', {
@@ -579,17 +537,19 @@ class VoiceAgentControl {
                         this.websocket.send(JSON.stringify(data));
                     }
                 } else {
-                    // No speech detected, just continue listening
-                    console.log('No speech detected, continuing to listen...');
+                    // No speech detected
+                    console.log('No speech detected');
                 }
                 
                 if (this.activeAgent) {
-                    this.voiceStatus.textContent = 'Listening continuously... Speak anytime';
+                    this.voiceStatus.textContent = 'Press and hold the "Say" button to speak';
+                    this.voiceStatus.className = 'voice-status';
                 }
             } else {
                 this.showError('Failed to transcribe speech: ' + result.error);
                 if (this.activeAgent) {
-                    this.voiceStatus.textContent = 'Listening continuously... Speak anytime';
+                    this.voiceStatus.textContent = 'Press and hold the "Say" button to speak';
+                    this.voiceStatus.className = 'voice-status';
                 }
             }
             
@@ -597,9 +557,20 @@ class VoiceAgentControl {
             console.error('Error processing voice input:', error);
             this.showError('Failed to process voice input');
             if (this.activeAgent) {
-                this.voiceStatus.textContent = 'Listening continuously... Speak anytime';
+                this.voiceStatus.textContent = 'Press and hold the "Say" button to speak';
+                this.voiceStatus.className = 'voice-status';
             }
         }
+    }
+    
+    _arrayBufferToBase64(buffer) {
+        var binary = '';
+        var bytes = new Uint8Array(buffer);
+        var len = bytes.byteLength;
+        for (var i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary);
     }
     
     setupEventListeners() {
@@ -615,6 +586,49 @@ class VoiceAgentControl {
             setTimeout(() => {
                 this.audioControls.style.display = 'none';
             }, 2000);
+        });
+        
+        // Push-to-talk button events
+        this.sayButton.addEventListener('mousedown', () => {
+            if (this.activeAgent && this.isConnected) {
+                this.isButtonPressed = true;
+                // Stop agent's speech immediately when user starts speaking
+                this.stopAgentSpeech();
+                this.startRecording();
+            }
+        });
+        
+        this.sayButton.addEventListener('mouseup', () => {
+            if (this.activeAgent && this.isConnected && this.isButtonPressed) {
+                this.isButtonPressed = false;
+                this.stopRecording();
+            }
+        });
+        
+        this.sayButton.addEventListener('mouseleave', () => {
+            if (this.activeAgent && this.isConnected && this.isButtonPressed) {
+                this.isButtonPressed = false;
+                this.stopRecording();
+            }
+        });
+        
+        // Touch events for mobile devices
+        this.sayButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (this.activeAgent && this.isConnected) {
+                this.isButtonPressed = true;
+                // Stop agent's speech immediately when user starts speaking
+                this.stopAgentSpeech();
+                this.startRecording();
+            }
+        });
+        
+        this.sayButton.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (this.activeAgent && this.isConnected && this.isButtonPressed) {
+                this.isButtonPressed = false;
+                this.stopRecording();
+            }
         });
     }
     
@@ -643,4 +657,4 @@ class VoiceAgentControl {
 // Initialize the control panel when the page loads
 document.addEventListener('DOMContentLoaded', () => {
     new VoiceAgentControl();
-}); 
+});
