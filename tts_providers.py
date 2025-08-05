@@ -135,8 +135,7 @@ class TTSProviderManager:
                 model="tts-1",
                 voice="alloy",
                 input=text,
-                response_format="wav",
-                speed=1.2  # Slightly faster speech for quicker response
+                response_format="wav"
             )
             
             return response.content

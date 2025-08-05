@@ -18,7 +18,7 @@ class VoiceAgentControl {
         this.initializeElements();
         this.loadData();
         this.setupEventListeners();
-        this.checkMicrophonePermission();
+        // Don't check microphone permission immediately - only when call starts
     }
     
     initializeElements() {
@@ -85,11 +85,13 @@ class VoiceAgentControl {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             stream.getTracks().forEach(track => track.stop()); // Stop the test stream
-            this.voiceStatus.textContent = 'Microphone access granted. Click "Start Call" to begin voice conversation.';
+            this.voiceStatus.textContent = 'Microphone access granted. Ready for voice conversation.';
+            return true;
         } catch (error) {
             console.error('Microphone permission denied:', error);
             this.voiceStatus.textContent = 'Microphone access denied. Please allow microphone access to use voice features.';
             this.voiceStatus.style.color = '#dc3545';
+            return false;
         }
     }
     
@@ -202,8 +204,15 @@ class VoiceAgentControl {
         // Add welcome message
         this.addMessage('agent', `Hello! I'm your RenovaVision AI Voice Solutions presale manager. I can help you explore our voice AI agents in ${languageName}. Press and hold the "Say" button to speak!`);
         
-        // Initialize microphone for push-to-talk
-        await this.initializeMicrophone();
+        // Check microphone permission and initialize microphone for push-to-talk
+        const micPermission = await this.checkMicrophonePermission();
+        if (micPermission) {
+            await this.initializeMicrophone();
+        } else {
+            // If microphone permission denied, still allow text chat but disable voice
+            this.voiceStatus.textContent = 'Voice features disabled. You can still chat via text.';
+            this.voiceStatus.style.color = '#ffc107';
+        }
     }
     
     endCall() {
@@ -262,7 +271,7 @@ class VoiceAgentControl {
         this.conversationPanel.style.display = 'block';
         this.activeAgentInfo.textContent = `${this.activeAgent.languageName} - ${this.activeAgent.provider}`;
         this.callStatus.style.display = 'flex';
-        this.voiceStatus.textContent = 'Press and hold the "Say" button to speak';
+        this.voiceStatus.textContent = 'Initializing microphone...';
         
         // Show provider info
         const sttProvider = this.activeAgent.provider === 'pyttsx3' ? 'Not available (TTS-only)' : this.activeAgent.provider;
