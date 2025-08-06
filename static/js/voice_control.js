@@ -374,7 +374,13 @@ class VoiceAgentControl {
             case 'agent_response':
             case 'agent_message':
                 this.addMessage('agent', data.text);
-                this.playAudio(data.audio_file);
+                
+                // Handle audio - prefer base64 if available, fallback to file
+                if (data.audio_base64) {
+                    this.playAudioBase64(data.audio_base64);
+                } else if (data.audio_file) {
+                    this.playAudio(data.audio_file);
+                }
                 
                 // Update timing metrics if available
                 if (data.timing_metrics) {
@@ -432,6 +438,57 @@ class VoiceAgentControl {
             
         } catch (error) {
             console.error('Error playing audio:', error);
+            this.showError('Failed to play audio: ' + error.message);
+            this.resetVoiceStatus();
+        }
+    }
+    
+    async playAudioBase64(audioBase64) {
+        if (!audioBase64) return;
+        
+        try {
+            // Convert base64 to blob
+            const binaryString = atob(audioBase64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const blob = new Blob([bytes], { type: 'audio/wav' });
+            
+            // Create object URL for faster playback
+            const audioUrl = URL.createObjectURL(blob);
+            
+            // Set audio source
+            this.audioPlayer.preload = 'auto';
+            this.audioPlayer.src = audioUrl;
+            this.audioControls.style.display = 'flex';
+            
+            // Show status while loading
+            this.voiceStatus.textContent = 'Loading audio...';
+            this.voiceStatus.className = 'voice-status processing';
+            
+            // Wait for audio to be ready
+            await new Promise((resolve, reject) => {
+                this.audioPlayer.oncanplaythrough = resolve;
+                this.audioPlayer.onerror = reject;
+                // Timeout after 3 seconds (faster for base64)
+                setTimeout(() => reject(new Error('Audio loading timeout')), 3000);
+            });
+            
+            // Play audio
+            await this.audioPlayer.play();
+            
+            // Update status
+            this.voiceStatus.textContent = 'Press and hold the "Say" button to speak';
+            this.voiceStatus.className = 'voice-status';
+            
+            // Clean up object URL after a delay
+            setTimeout(() => {
+                URL.revokeObjectURL(audioUrl);
+            }, 1000);
+            
+        } catch (error) {
+            console.error('Error playing base64 audio:', error);
             this.showError('Failed to play audio: ' + error.message);
             this.resetVoiceStatus();
         }

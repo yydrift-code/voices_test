@@ -5,15 +5,20 @@ from pathlib import Path
 from typing import Dict, List, Optional
 import json
 import time
+from functools import lru_cache
 
 # TTS Provider imports
 import openai
 from google.cloud import texttospeech
 
 class TTSProviderManager:
-    """Manages different TTS providers for comparison"""
+    """Manages different TTS providers for comparison with performance optimizations"""
     
     def __init__(self):
+        # Cache clients to avoid recreation
+        self._openai_client = None
+        self._google_client = None
+        
         self.providers = {
             "openai": self._init_openai,
             "google": self._init_google
@@ -28,7 +33,7 @@ class TTSProviderManager:
             "en": "English"
         }
         
-        # Language mapping for different providers
+        # Language mapping for different providers (cached)
         self.language_mapping = {
             "openai": {
                 "be": "be", "pl": "pl", "lt": "lt", "lv": "lv", "et": "et", "en": "en"
@@ -43,6 +48,20 @@ class TTSProviderManager:
         
         # Create audio directory
         Path("static/audio").mkdir(parents=True, exist_ok=True)
+    
+    @property
+    def openai_client(self):
+        """Lazy load OpenAI client"""
+        if self._openai_client is None:
+            self._openai_client = openai.OpenAI()
+        return self._openai_client
+    
+    @property
+    def google_client(self):
+        """Lazy load Google client"""
+        if self._google_client is None:
+            self._google_client = texttospeech.TextToSpeechClient()
+        return self._google_client
     
     def _init_providers(self):
         """Initialize all available TTS providers"""
@@ -72,10 +91,6 @@ class TTSProviderManager:
         except Exception as e:
             raise ValueError(f"Google Cloud TTS not configured: {e}")
     
-
-    
-
-    
     def get_available_providers(self) -> List[str]:
         """Get list of available TTS providers"""
         return list(self.active_providers.keys())
@@ -84,13 +99,18 @@ class TTSProviderManager:
         """Get supported languages"""
         return self.supported_languages
     
+    @lru_cache(maxsize=128)
+    def _get_language_code(self, provider: str, language: str) -> str:
+        """Cached language code lookup"""
+        return self.language_mapping[provider].get(language, language)
+    
     async def generate_speech(self, text: str, language: str = "en", provider: str = "openai") -> bytes:
         """Generate speech and return audio data as bytes"""
         if provider not in self.active_providers:
             raise ValueError(f"Provider {provider} not available")
         
-        # Get provider-specific language code
-        lang_code = self.language_mapping[provider].get(language, language)
+        # Get provider-specific language code (cached)
+        lang_code = self._get_language_code(provider, language)
         
         if provider == "openai":
             return await self._generate_openai_bytes(text, lang_code)
@@ -100,10 +120,10 @@ class TTSProviderManager:
         raise ValueError(f"Unknown provider: {provider}")
     
     async def _generate_openai_bytes(self, text: str, language: str) -> bytes:
-        """Generate speech using OpenAI TTS and return as bytes"""
+        """Generate speech using OpenAI TTS and return as bytes (optimized)"""
         try:
-            client = openai.OpenAI()
-            response = client.audio.speech.create(
+            # Use cached client
+            response = self.openai_client.audio.speech.create(
                 model="tts-1",
                 voice="alloy",
                 input=text,
@@ -118,8 +138,8 @@ class TTSProviderManager:
     async def _generate_openai(self, text: str, language: str, output_path: Path):
         """Generate speech using OpenAI TTS"""
         try:
-            client = openai.OpenAI()
-            response = client.audio.speech.create(
+            # Use cached client
+            response = self.openai_client.audio.speech.create(
                 model="tts-1",
                 voice="alloy",
                 input=text,
@@ -133,40 +153,17 @@ class TTSProviderManager:
             raise Exception(f"OpenAI TTS error: {e}")
     
     async def _generate_google_bytes(self, text: str, language: str) -> bytes:
-        """Generate speech using Google Cloud TTS and return as bytes"""
+        """Generate speech using Google Cloud TTS and return as bytes (optimized)"""
         try:
-            client = self.active_providers["google"]["client"]
+            # Use cached client
+            client = self.google_client
             
             synthesis_input = texttospeech.SynthesisInput(text=text)
             
-            # Try to get available voices for the language
-            try:
-                voices_response = client.list_voices(language_code=language)
-                available_voices = voices_response.voices
-                
-                # Select the first available voice
-                if available_voices:
-                    voice_name = available_voices[0].name
-                else:
-                    # No voices found for this language, use language code only
-                    voice_name = None
-            except Exception:
-                # If list_voices fails, use language code only
-                voice_name = None
-            
-            # Create voice selection params
-            if voice_name:
-                voice = texttospeech.VoiceSelectionParams(
-                    language_code=language,
-                    name=voice_name
-                    # Don't specify gender to avoid conflicts
-                )
-            else:
-                # Use language code only, let Google choose the voice
-                voice = texttospeech.VoiceSelectionParams(
-                    language_code=language
-                    # Don't specify gender to avoid conflicts
-                )
+            # Create voice selection params (simplified for speed)
+            voice = texttospeech.VoiceSelectionParams(
+                language_code=language
+            )
             
             audio_config = texttospeech.AudioConfig(
                 audio_encoding=texttospeech.AudioEncoding.LINEAR16
@@ -184,38 +181,14 @@ class TTSProviderManager:
     async def _generate_google(self, text: str, language: str, output_path: Path):
         """Generate speech using Google Cloud TTS"""
         try:
-            client = self.active_providers["google"]["client"]
+            # Use cached client
+            client = self.google_client
             
             synthesis_input = texttospeech.SynthesisInput(text=text)
             
-            # Try to get available voices for the language
-            try:
-                voices_response = client.list_voices(language_code=language)
-                available_voices = voices_response.voices
-                
-                # Select the first available voice
-                if available_voices:
-                    voice_name = available_voices[0].name
-                else:
-                    # No voices found for this language, use language code only
-                    voice_name = None
-            except Exception:
-                # If list_voices fails, use language code only
-                voice_name = None
-            
-            # Create voice selection params
-            if voice_name:
-                voice = texttospeech.VoiceSelectionParams(
-                    language_code=language,
-                    name=voice_name
-                    # Don't specify gender to avoid conflicts
-                )
-            else:
-                # Use language code only, let Google choose the voice
-                voice = texttospeech.VoiceSelectionParams(
-                    language_code=language
-                    # Don't specify gender to avoid conflicts
-                )
+            voice = texttospeech.VoiceSelectionParams(
+                language_code=language
+            )
             
             audio_config = texttospeech.AudioConfig(
                 audio_encoding=texttospeech.AudioEncoding.LINEAR16
@@ -230,8 +203,6 @@ class TTSProviderManager:
                 
         except Exception as e:
             raise Exception(f"Google TTS error: {e}")
-    
-
     
     def _create_simple_wav_bytes(self, text: str) -> bytes:
         """Create a simple WAV audio data as bytes"""
@@ -286,10 +257,6 @@ class TTSProviderManager:
             wav_file.setsampwidth(2)  # 2 bytes per sample
             wav_file.setframerate(sample_rate)
             wav_file.writeframes(struct.pack('h' * len(samples), *samples))
-    
-
-    
-
     
     async def compare_providers(self, text: str, language: str = "en") -> Dict[str, str]:
         """Compare all available providers for the same text"""

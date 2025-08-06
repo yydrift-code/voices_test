@@ -1,75 +1,58 @@
 import os
 import asyncio
 import json
-import tempfile
-from pathlib import Path
-from typing import Dict, List, Optional
+import time
 from datetime import datetime
 from enum import Enum
+from typing import Dict, List, Optional
+from pathlib import Path
+from functools import lru_cache
 
-# OpenAI import for GPT-4o-mini
-try:
-    import openai
-    OPENAI_AVAILABLE = True
-except ImportError:
-    OPENAI_AVAILABLE = False
+import openai
 
 class AgentType(Enum):
     """Types of voice agents"""
     PRESALE_MANAGER = "presale_manager"
 
 class VoiceAgent:
-    """Voice agent that uses GPT-4o-mini for intelligent responses"""
+    """Optimized voice agent with performance improvements"""
     
     def __init__(self, agent_type: AgentType, tts_manager, language: str = "en"):
         self.agent_type = agent_type
         self.tts_manager = tts_manager
         self.language = language
+        
+        # Cache OpenAI client
+        self._openai_client = None
+        
+        # Optimized conversation history (keep only recent messages)
         self.conversation_history = []
+        self.max_history = 6  # Keep only last 6 messages for speed
         
-        # Initialize OpenAI client
-        if OPENAI_AVAILABLE:
-            api_key = os.getenv("OPENAI_API_KEY")
-            if api_key:
-                self.openai_available = True
-            else:
-                self.openai_available = False
-                print("Warning: OPENAI_API_KEY not found. Using fallback responses.")
-        else:
-            self.openai_available = False
-            print("Warning: OpenAI library not available. Using fallback responses.")
-        
-        # Language mapping for GPT
+        # Language mapping (cached)
         self.language_mapping = {
-            "be": "Belarusian",
-            "pl": "Polish", 
-            "lt": "Lithuanian",
-            "lv": "Latvian",
-            "et": "Estonian",
-            "en": "English"
+            "be": "Belarusian", "pl": "Polish", "lt": "Lithuanian", 
+            "lv": "Latvian", "et": "Estonian", "en": "English"
         }
         
-        # Agent system prompt
+        # Check OpenAI availability
+        self.openai_available = bool(os.getenv("OPENAI_API_KEY"))
+        
+        # Cache system prompt
         self.system_prompt = self._get_system_prompt()
     
+    @property
+    def openai_client(self):
+        """Lazy load OpenAI client"""
+        if self._openai_client is None:
+            self._openai_client = openai.OpenAI()
+        return self._openai_client
+    
     def _get_system_prompt(self) -> str:
-        """Get the system prompt for the agent based on type and language"""
+        """Get optimized system prompt for faster responses"""
         language_name = self.language_mapping.get(self.language, "English")
         
-        if self.agent_type == AgentType.PRESALE_MANAGER:
-            return f"""You are a RenovaVision AI Voice Solutions Presale Manager. Your role is to introduce and promote RenovaVision's voice AI agents to potential customers.
-
-IMPORTANT: Always respond in {language_name} language, not English.
-
-CRITICAL: Keep all responses SHORT - maximum 15 words. Be concise and direct.
-
-Your responsibilities:
-1. Introduce RenovaVision as a leading AI technology company
-2. Explain the benefits of AI voice agents for businesses
-3. Showcase multilingual capabilities (Belarusian, Polish, Lithuanian, Latvian, Estonian, English)
-4. Discuss different TTS providers and their strengths
-5. Help customers understand pricing and implementation options
-6. Provide technical guidance and best practices
+        return f"""You are a helpful AI assistant for RenovaVision. Respond in {language_name} language.
 
 Key talking points:
 - RenovaVision specializes in conversational AI agents. They provide textual and voice agents, video avatars
@@ -83,8 +66,6 @@ Style: Very concise and direct, focus on customer needs
 Language: Always respond in {language_name}
 
 Remember: You are having a voice conversation. Keep responses under 15 words maximum."""
-        
-        return f"You are a helpful AI assistant. Respond in {language_name} language."
     
     def get_agent_info(self) -> Dict:
         """Get information about the agent"""
@@ -97,16 +78,18 @@ Remember: You are having a voice conversation. Keep responses under 15 words max
         }
     
     async def process_message(self, text: str, language: str = "en", provider: str = "openai") -> Dict:
-        """Process a user message and generate an intelligent response with TTS"""
-        import time
-        
+        """Process a user message and generate an intelligent response with TTS (optimized)"""
         try:
-            # Add message to conversation history
+            # Add message to conversation history (optimized)
             self.conversation_history.append({
                 "user": text,
                 "timestamp": datetime.now().isoformat(),
                 "language": language
             })
+            
+            # Keep only recent history for speed
+            if len(self.conversation_history) > self.max_history:
+                self.conversation_history = self.conversation_history[-self.max_history:]
             
             # Track timing metrics
             timing_metrics = {}
@@ -118,7 +101,7 @@ Remember: You are having a voice conversation. Keep responses under 15 words max
             else:
                 response_text = self._generate_fallback_response(text, language)
             llm_end_time = time.time()
-            timing_metrics['llm_time'] = round((llm_end_time - llm_start_time) * 1000, 2)  # Convert to milliseconds
+            timing_metrics['llm_time'] = round((llm_end_time - llm_start_time) * 1000, 2)
             
             # Generate TTS audio (optimized for speed)
             tts_start_time = time.time()
@@ -128,20 +111,15 @@ Remember: You are having a voice conversation. Keep responses under 15 words max
                 provider=provider
             )
             tts_end_time = time.time()
-            timing_metrics['tts_time'] = round((tts_end_time - tts_start_time) * 1000, 2)  # Convert to milliseconds
+            timing_metrics['tts_time'] = round((tts_end_time - tts_start_time) * 1000, 2)
             
-            # Save audio to file
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"response_{self.agent_type.value}_{timestamp}.wav"
-            audio_path = Path("static/audio") / filename
-            
-            with open(audio_path, "wb") as f:
-                f.write(audio_data)
+            # Convert audio to base64 for direct transmission (avoid file I/O)
+            import base64
+            audio_base64 = base64.b64encode(audio_data).decode('utf-8')
             
             # Add response to conversation history
             self.conversation_history.append({
                 "agent": response_text,
-                "audio_file": filename,
                 "timestamp": datetime.now().isoformat(),
                 "language": language,
                 "provider": provider
@@ -150,7 +128,7 @@ Remember: You are having a voice conversation. Keep responses under 15 words max
             return {
                 "type": "agent_response",
                 "text": response_text,
-                "audio_file": filename,
+                "audio_base64": audio_base64,  # Send audio directly
                 "agent_type": self.agent_type.value,
                 "agent_name": "RenovaVision Presale Manager",
                 "timestamp": datetime.now().isoformat(),
@@ -168,15 +146,15 @@ Remember: You are having a voice conversation. Keep responses under 15 words max
             }
     
     def _generate_llm_response(self, user_message: str, language: str) -> str:
-        """Generate response using GPT-4o-mini"""
+        """Generate response using GPT-4o-mini (optimized)"""
         try:
-            # Prepare conversation context
+            # Prepare conversation context (optimized - only last 4 messages)
             messages = [
                 {"role": "system", "content": self.system_prompt},
             ]
             
-            # Add recent conversation history (last 5 exchanges)
-            recent_history = self.conversation_history[-10:]  # Last 10 messages
+            # Add recent conversation history (only last 4 exchanges for speed)
+            recent_history = self.conversation_history[-4:]  # Last 4 messages
             for msg in recent_history:
                 if "user" in msg:
                     messages.append({"role": "user", "content": msg["user"]})
@@ -186,15 +164,14 @@ Remember: You are having a voice conversation. Keep responses under 15 words max
             # Add current user message
             messages.append({"role": "user", "content": user_message})
             
-            # Call OpenAI API using new v1.0.0+ syntax (optimized for speed)
-            client = openai.OpenAI()
-            response = client.chat.completions.create(
+            # Call OpenAI API using cached client (optimized for speed)
+            response = self.openai_client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=messages,
-                max_tokens=50,  # Very short responses - max 15 words
-                temperature=0.5,  # Lower temperature for more focused responses
-                presence_penalty=0.1,  # Reduce repetition
-                frequency_penalty=0.1   # Reduce repetition
+                max_tokens=30,  # Very short responses - max 10 words
+                temperature=0.3,  # Lower temperature for more focused responses
+                presence_penalty=0.0,  # Remove penalties for speed
+                frequency_penalty=0.0   # Remove penalties for speed
             )
             
             return response.choices[0].message.content.strip()
@@ -204,7 +181,7 @@ Remember: You are having a voice conversation. Keep responses under 15 words max
             return self._generate_fallback_response(user_message, language)
     
     def _generate_fallback_response(self, user_message: str, language: str) -> str:
-        """Generate fallback response when LLM is not available"""
+        """Generate fallback response when LLM is not available (optimized)"""
         language_name = self.language_mapping.get(language, "English")
         
         # Simple keyword-based responses in the target language
@@ -212,60 +189,61 @@ Remember: You are having a voice conversation. Keep responses under 15 words max
         
         if any(word in user_message_lower for word in ["hello", "hi", "hey", "start", "begin"]):
             if language == "be":
-                return "Прывітанне! Я прадажнік RenovaVision. Што вас цікавіць?"
+                return "Прывітанне! Што вас цікавіць?"
             elif language == "pl":
-                return "Cześć! Jestem sprzedawcą RenovaVision. Co Cię interesuje?"
+                return "Cześć! Co Cię interesuje?"
             elif language == "lt":
-                return "Labas! Aš esu RenovaVision pardavėjas. Kas jus domina?"
+                return "Labas! Kas jus domina?"
             elif language == "lv":
-                return "Sveiki! Esmu RenovaVision pārdevējs. Kas jūs interesē?"
+                return "Sveiki! Kas jūs interesē?"
             elif language == "et":
-                return "Tere! Olen RenovaVision müügimees. Mis teid huvitab?"
+                return "Tere! Mis teid huvitab?"
             else:
-                return "Hello! I'm a RenovaVision sales rep. What interests you?"
+                return "Hello! What interests you?"
         
         elif any(word in user_message_lower for word in ["price", "cost", "pricing", "budget"]):
             if language == "be":
-                return "Цэны залежаць ад выкарыстання. Які ў вас бюджэт?"
+                return "Цэны залежаць ад выкарыстання."
             elif language == "pl":
-                return "Ceny zależą od użycia. Jaki masz budżet?"
+                return "Ceny zależą od użycia."
             elif language == "lt":
-                return "Kainos priklauso nuo naudojimo. Koks jūsų biudžetas?"
+                return "Kainos priklauso nuo naudojimo."
             elif language == "lv":
-                return "Cenas atkarīgas no lietošanas. Kāds jūsu budžets?"
+                return "Cenas atkarīgas no lietošanas."
             elif language == "et":
-                return "Hinnad sõltuvad kasutamisest. Mis on teie eelarve?"
+                return "Hinnad sõltuvad kasutamisest."
             else:
-                return "Pricing depends on usage. What's your budget?"
+                return "Pricing depends on usage."
         
         elif any(word in user_message_lower for word in ["language", "multilingual", "belarusian", "polish", "lithuanian", "latvian", "estonian"]):
             if language == "be":
-                return "Мы падтрымліваем 6 моў. Якую хочаце пачуць?"
+                return "Мы падтрымліваем 6 моў."
             elif language == "pl":
-                return "Obsługujemy 6 języków. Który chcesz usłyszeć?"
+                return "Obsługujemy 6 języków."
             elif language == "lt":
-                return "Palaikome 6 kalbas. Kurią norite išgirsti?"
+                return "Palaikome 6 kalbas."
             elif language == "lv":
-                return "Atbalstām 6 valodas. Kādu vēlaties dzirdēt?"
+                return "Atbalstām 6 valodas."
             elif language == "et":
-                return "Toetame 6 keelt. Millist soovite kuulda?"
+                return "Toetame 6 keelt."
             else:
-                return "We support 6 languages. Which would you like to hear?"
+                return "We support 6 languages."
         
         else:
+            # Default response
             if language == "be":
-                return "Дзякуй! Што вас цікавіць?"
+                return "Як магу дапамагчы?"
             elif language == "pl":
-                return "Dziękuję! Co Cię interesuje?"
+                return "Jak mogę pomóc?"
             elif language == "lt":
-                return "Ačiū! Kas jus domina?"
+                return "Kaip galiu padėti?"
             elif language == "lv":
-                return "Paldies! Kas jūs interesē?"
+                return "Kā es varu palīdzēt?"
             elif language == "et":
-                return "Tänan! Mis teid huvitab?"
+                return "Kuidas saan aidata?"
             else:
-                return "Thanks! What interests you?"
+                return "How can I help?"
     
     def get_conversation_history(self) -> List[Dict]:
-        """Get the conversation history"""
-        return self.conversation_history 
+        """Get conversation history (optimized)"""
+        return self.conversation_history.copy() 
