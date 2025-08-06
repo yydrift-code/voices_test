@@ -21,7 +21,7 @@ Each provider handles both text-to-speech and speech-to-text:
 
 1. **OpenAI** - TTS: OpenAI TTS, STT: OpenAI Whisper, LLM: GPT-4o-mini
 2. **Google Cloud** - TTS: Google Cloud TTS, STT: Google Speech-to-Text  
-3. **pyttsx3** - TTS: Offline system voices, STT: Not available (TTS-only)
+
 
 ## Prerequisites
 
@@ -68,7 +68,7 @@ Each provider handles both text-to-speech and speech-to-text:
 
 ### Optional Setup
 
-- **pyttsx3**: Works offline, no API key required (TTS-only)
+
 
 ## Usage
 

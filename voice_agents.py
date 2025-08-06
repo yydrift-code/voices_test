@@ -74,7 +74,7 @@ Your responsibilities:
 Key talking points:
 - RenovaVision specializes in conversational AI agents. They provide textual and voice agents, video avatars
 - Our agents can speak multiple languages fluently
-- We support various TTS providers (OpenAI, Google, pyttsx3)
+- We support various TTS providers (OpenAI, Google)
 - Easy integration and customization options
 - Cost-effective solutions for businesses of all sizes
 

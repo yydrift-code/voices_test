@@ -278,7 +278,7 @@ class VoiceAgentControl {
         this.voiceStatus.textContent = 'Initializing microphone...';
         
         // Show provider info
-        const sttProvider = this.activeAgent.provider === 'pyttsx3' ? 'Not available (TTS-only)' : this.activeAgent.provider;
+        const sttProvider = this.activeAgent.provider;
         this.providerInfo.innerHTML = `
             <strong>TTS Provider:</strong> ${this.activeAgent.provider} | 
             <strong>STT Provider:</strong> ${sttProvider}

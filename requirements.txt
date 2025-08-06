@@ -9,7 +9,6 @@ pydantic
 openai
 google-cloud-texttospeech
 google-cloud-speech
-pyttsx3
 
 # Audio processing
 pydub

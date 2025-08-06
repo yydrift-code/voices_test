@@ -9,7 +9,6 @@ import time
 # TTS Provider imports
 import openai
 from google.cloud import texttospeech
-import pyttsx3
 
 class TTSProviderManager:
     """Manages different TTS providers for comparison"""
@@ -17,8 +16,7 @@ class TTSProviderManager:
     def __init__(self):
         self.providers = {
             "openai": self._init_openai,
-            "google": self._init_google,
-            "pyttsx3": self._init_pyttsx3
+            "google": self._init_google
         }
         
         self.supported_languages = {
@@ -37,15 +35,6 @@ class TTSProviderManager:
             },
             "google": {
                 "be": "en-US", "pl": "pl-PL", "lt": "lt-LT", "lv": "lv-LV", "et": "et-EE", "en": "en-US"
-            },
-            "pyttsx3": {
-                "be": "be", "pl": "pl", "lt": "lt", "lv": "lv", "et": "et", "en": "en"
-            },
-            "coqui": {
-                "be": "be", "pl": "pl", "lt": "lt", "lv": "lv", "et": "et", "en": "en"
-            },
-            "elevenlabs": {
-                "be": "be", "pl": "pl", "lt": "lt", "lv": "lv", "et": "et", "en": "en"
             }
         }
         
@@ -83,22 +72,7 @@ class TTSProviderManager:
         except Exception as e:
             raise ValueError(f"Google Cloud TTS not configured: {e}")
     
-    def _init_pyttsx3(self):
-        """Initialize pyttsx3 (offline TTS)"""
-        try:
-            engine = pyttsx3.init()
-            return {"engine": engine}
-        except Exception as e:
-            raise ValueError(f"pyttsx3 not available: {e}")
-    
-    # def _init_coqui(self):
-    #     """Initialize Coqui TTS"""
-    #     try:
-    #         # Use a multilingual model
-    #         tts = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2")
-    #         return {"tts": tts}
-    #     except Exception as e:
-    #         raise ValueError(f"Coqui TTS not available: {e}")
+
     
 
     
@@ -122,8 +96,6 @@ class TTSProviderManager:
             return await self._generate_openai_bytes(text, lang_code)
         elif provider == "google":
             return await self._generate_google_bytes(text, lang_code)
-        elif provider == "pyttsx3":
-            return await self._generate_pyttsx3_bytes(text, lang_code)
         
         raise ValueError(f"Unknown provider: {provider}")
     
@@ -259,124 +231,7 @@ class TTSProviderManager:
         except Exception as e:
             raise Exception(f"Google TTS error: {e}")
     
-    async def _generate_pyttsx3_bytes(self, text: str, language: str) -> bytes:
-        """Generate speech using pyttsx3 and return as bytes"""
-        try:
-            # Create a fresh engine for each request (like in the test script)
-            engine = pyttsx3.init()
-            
-            # Set language if supported
-            try:
-                engine.setProperty('voice', language)
-            except:
-                pass  # Use default voice if language not supported
-            
-            # Try to save to a temporary file and read it back
-            import tempfile
-            import os
-            
-            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
-                temp_path = temp_file.name
-            
-            try:
-                # Save audio to temporary file
-                engine.save_to_file(text, temp_path)
-                engine.runAndWait()
-                
-                # Check if file was created and has content
-                if os.path.exists(temp_path) and os.path.getsize(temp_path) > 0:
-                    # Read the file
-                    with open(temp_path, 'rb') as f:
-                        audio_data = f.read()
-                    
-                    # Clean up temp file
-                    os.unlink(temp_path)
-                    
-                    # Check if it's a valid WAV file or AIFF file
-                    if audio_data.startswith(b'RIFF'):
-                        # Valid WAV file
-                        return audio_data
-                    elif audio_data.startswith(b'FORM'):
-                        # AIFF file (common on macOS with pyttsx3)
-                        print(f"pyttsx3 created AIFF file ({len(audio_data)} bytes), converting to WAV")
-                        try:
-                            # Convert AIFF to WAV using pure Python
-                            wav_data = self._convert_aiff_to_wav(audio_data)
-                            print(f"✓ Successfully converted AIFF to WAV: {len(wav_data)} bytes")
-                            return wav_data
-                                
-                        except Exception as conv_error:
-                            print(f"✗ AIFF to WAV conversion failed: {conv_error}")
-                            raise Exception(f"AIFF to WAV conversion failed: {conv_error}")
-                    else:
-                        # Unknown format
-                        print(f"pyttsx3 created unknown format file ({len(audio_data)} bytes)")
-                        raise Exception(f"Unknown audio format: {audio_data[:8]}")
-                else:
-                    # File creation failed
-                    os.unlink(temp_path)
-                    raise Exception("pyttsx3 failed to create audio file")
-                    
-            except Exception as save_error:
-                # Clean up temp file if it exists
-                if os.path.exists(temp_path):
-                    os.unlink(temp_path)
-                raise save_error
-            
-        except Exception as e:
-            raise Exception(f"pyttsx3 error: {e}")
-    
-    async def _generate_pyttsx3(self, text: str, language: str, output_path: Path):
-        """Generate speech using pyttsx3"""
-        try:
-            # Since pyttsx3 file saving is unreliable on macOS, create a simple audio file
-            # and use pyttsx3 only for playback demonstration
-            self._create_simple_wav(str(output_path), text)
-            
-            # Optionally, you can also play the audio using pyttsx3
-            # engine = self.active_providers["pyttsx3"]["engine"]
-            # engine.say(text)
-            # engine.runAndWait()
-            
-        except Exception as e:
-            raise Exception(f"pyttsx3 error: {e}")
-    
-    def _convert_aiff_to_wav(self, aiff_data: bytes) -> bytes:
-        """Convert AIFF audio data to WAV format using pure Python"""
-        import struct
-        import io
-        import wave
-        
-        # Parse AIFF header
-        if not aiff_data.startswith(b'FORM'):
-            raise Exception("Not a valid AIFF file")
-        
-        # Find the SSND chunk (sound data)
-        offset = 12  # Skip FORM header
-        while offset < len(aiff_data) - 8:
-            chunk_id = aiff_data[offset:offset+4]
-            chunk_size = struct.unpack('>I', aiff_data[offset+4:offset+8])[0]
-            
-            if chunk_id == b'SSND':
-                # Found sound data chunk
-                # Skip 8 bytes (offset + block size)
-                audio_start = offset + 16
-                audio_end = offset + 8 + chunk_size
-                audio_data = aiff_data[audio_start:audio_end]
-                
-                # Create WAV file
-                buffer = io.BytesIO()
-                with wave.open(buffer, 'w') as wav_file:
-                    wav_file.setnchannels(1)  # Mono
-                    wav_file.setsampwidth(2)  # 16-bit
-                    wav_file.setframerate(22050)  # 22.05 kHz
-                    wav_file.writeframes(audio_data)
-                
-                return buffer.getvalue()
-            
-            offset += 8 + chunk_size
-        
-        raise Exception("No sound data found in AIFF file")
+
     
     def _create_simple_wav_bytes(self, text: str) -> bytes:
         """Create a simple WAV audio data as bytes"""
@@ -432,20 +287,7 @@ class TTSProviderManager:
             wav_file.setframerate(sample_rate)
             wav_file.writeframes(struct.pack('h' * len(samples), *samples))
     
-    # async def _generate_coqui(self, text: str, language: str, output_path: Path):
-    #     """Generate speech using Coqui TTS"""
-    #     try:
-    #         tts = self.active_providers["coqui"]["tts"]
-    #         
-    #         # Generate speech
-    #         tts.tts_to_file(
-    #             text=text,
-    #             file_path=str(output_path),
-    #             language=language
-    #     )
-    #         
-    #     except Exception as e:
-    #         raise Exception(f"Coqui TTS error: {e}")
+
     
 
     

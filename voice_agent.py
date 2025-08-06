@@ -46,19 +46,7 @@ class RenovaVisionAgent:
                 "best_for": "Enterprise applications, Google ecosystem integration"
             },
             
-                                "pyttsx3": {
-                        "name": "pyttsx3",
-                        "strengths": [
-                            "Completely offline",
-                            "No API costs",
-                            "Simple integration",
-                            "System voice support",
-                            "Good for basic applications",
-                            "Real-time speech synthesis works"
-                        ],
-                        "pricing": "Free",
-                        "best_for": "Basic applications, offline systems, cost-sensitive projects"
-                    }
+
         }
         
         # Sample conversation responses
@@ -79,7 +67,7 @@ class RenovaVisionAgent:
                 "Perfect! Multilingual support is crucial for global applications. Let me show you how our TTS providers handle different languages."
             ],
             "pricing": [
-                "Pricing varies by provider and usage. ElevenLabs offers competitive pay-per-use rates, while Coqui TTS is completely free for self-hosted solutions. What's your budget range?",
+                "Pricing varies by provider and usage. We have solutions for every budget - from free open-source options to premium enterprise services. What's your expected usage volume?",
                 "We have solutions for every budget - from free open-source options to premium enterprise services. What's your expected usage volume?",
                 "Let me break down the pricing for you. We can start with cost-effective solutions and scale up as your needs grow."
             ],
@@ -100,7 +88,7 @@ class RenovaVisionAgent:
             ]
         }
     
-    async def process_message(self, text: str, language: str = "en", provider: str = "elevenlabs") -> Dict:
+    async def process_message(self, text: str, language: str = "en", provider: str = "openai") -> Dict:
         """Process user message and generate appropriate response"""
         
         # Add to conversation history

@@ -352,7 +352,7 @@ class VoiceAgentsDemo {
                 <td><strong>${languageNames[lang]}</strong></td>
                 <td><span class="provider-status" id="status_${lang}_openai"></span>OpenAI</td>
                 <td><span class="provider-status" id="status_${lang}_google"></span>Google</td>
-                <td><span class="provider-status" id="status_${lang}_pyttsx3"></span>pyttsx3</td>
+                
             `;
             this.comparisonTableBody.appendChild(row);
         });
@@ -366,7 +366,7 @@ class VoiceAgentsDemo {
         }
         
         const language = this.languageSelect.value;
-        const providers = ['openai', 'google', 'pyttsx3'];
+        const providers = ['openai', 'google'];
         
         this.testAllProvidersButton.disabled = true;
         this.testAllProvidersButton.innerHTML = '<span class="loading"></span> Testing...';

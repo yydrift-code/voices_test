@@ -191,8 +191,7 @@ async def transcribe_with_provider(audio_file_path: str, language: str, provider
             return await transcribe_with_openai(audio_file_path, mapped_language)
         elif provider == "google":
             return await transcribe_with_google(audio_file_path, mapped_language)
-        elif provider == "pyttsx3":
-            return await transcribe_with_pyttsx3(audio_file_path, mapped_language)
+
         else:
             raise ValueError(f"Unsupported provider for STT: {provider}")
             
@@ -268,11 +267,7 @@ async def transcribe_with_google(audio_file_path: str, language: str) -> str:
         print(f"Google STT error: {e}")
         return "Hello, this is a placeholder transcription. Google Speech-to-Text is not fully configured."
 
-async def transcribe_with_pyttsx3(audio_file_path: str, language: str) -> str:
-    """Transcribe audio using pyttsx3 (placeholder - pyttsx3 doesn't support STT)"""
-    # pyttsx3 is text-to-speech only, doesn't support speech-to-text
-    # This is a placeholder for demonstration
-    return "Hello, this is a placeholder transcription. pyttsx3 is TTS-only and doesn't support speech-to-text."
+
 
 @app.post("/api/tts")
 async def generate_tts(message: Message):
