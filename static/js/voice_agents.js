@@ -7,6 +7,7 @@ class VoiceAgentsDemo {
         this.isConnected = false;
         this.selectedAgent = null;
         this.agents = [];
+        this.isConnectionIntentionallyClosed = false; // Flag to track intentional connection closing
         
         this.initializeElements();
         this.bindEvents();
@@ -111,6 +112,9 @@ class VoiceAgentsDemo {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws`;
         
+        // Reset flag when starting a new connection
+        this.isConnectionIntentionallyClosed = false;
+        
         this.ws = new WebSocket(wsUrl);
         
         this.ws.onopen = () => {
@@ -129,7 +133,10 @@ class VoiceAgentsDemo {
             console.log('WebSocket disconnected');
             this.isConnected = false;
             this.updateConnectionStatus(false);
-            this.addSystemMessage('Connection lost. Please refresh the page.');
+            // Only show error message if the connection wasn't intentionally closed
+            if (!this.isConnectionIntentionallyClosed) {
+                this.addSystemMessage('Connection lost. Please refresh the page.');
+            }
         };
         
         this.ws.onerror = (error) => {
@@ -468,4 +475,5 @@ class VoiceAgentsDemo {
 let demo;
 document.addEventListener('DOMContentLoaded', () => {
     demo = new VoiceAgentsDemo();
+    window.voiceAgentsDemo = demo;
 }); 

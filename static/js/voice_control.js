@@ -6,6 +6,7 @@ class VoiceAgentControl {
         this.providers = [];
         this.languages = {};
         this.isConnected = false;
+        this.isConnectionIntentionallyClosed = false; // Flag to track intentional connection closing
         
         // Voice recording properties for push-to-talk
         this.mediaRecorder = null;
@@ -216,6 +217,9 @@ class VoiceAgentControl {
     }
     
     endCall() {
+        // Set flag to indicate intentional connection closing
+        this.isConnectionIntentionallyClosed = true;
+        
         // Stop recording if active
         if (this.isRecording) {
             this.stopRecording();
@@ -317,6 +321,9 @@ class VoiceAgentControl {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws`;
         
+        // Reset flag when starting a new connection
+        this.isConnectionIntentionallyClosed = false;
+        
         this.websocket = new WebSocket(wsUrl);
         
         this.websocket.onopen = () => {
@@ -332,7 +339,10 @@ class VoiceAgentControl {
         this.websocket.onclose = () => {
             this.isConnected = false;
             this.updateConnectionStatus(false);
-            this.showError('Connection lost. Please refresh the page.');
+            // Only show error message if the connection wasn't intentionally closed
+            if (!this.isConnectionIntentionallyClosed) {
+                this.showError('Connection lost. Please refresh the page.');
+            }
         };
         
         this.websocket.onerror = (error) => {
@@ -784,5 +794,5 @@ class VoiceAgentControl {
 
 // Initialize the control panel when the page loads
 document.addEventListener('DOMContentLoaded', () => {
-    new VoiceAgentControl();
+    window.voiceAgentControl = new VoiceAgentControl();
 });
