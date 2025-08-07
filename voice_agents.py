@@ -126,9 +126,9 @@ Remember: You are having a voice conversation. Keep responses under 15 words max
             })
             
             return {
-                "type": "agent_response",
+                "type": "agent_message",
                 "text": response_text,
-                "audio_base64": audio_base64,  # Send audio directly
+                "audio_data": audio_base64,  # Send audio directly
                 "agent_type": self.agent_type.value,
                 "agent_name": "RenovaVision Presale Manager",
                 "timestamp": datetime.now().isoformat(),

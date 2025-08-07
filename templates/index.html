@@ -3,286 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voice Agent Control Panel</title>
+    <title>RenovaVision AI Voice Solutions</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="/static/css/style.css" rel="stylesheet">
-    <style>
-        .agent-table {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
-        
-        .agent-table th {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            font-weight: 600;
-            text-align: center;
-            padding: 15px 10px;
-            border: none;
-        }
-        
-        .agent-table td {
-            padding: 12px 8px;
-            text-align: center;
-            vertical-align: middle;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .language-cell {
-            background: #f8f9fa;
-            font-weight: 600;
-            color: #495057;
-        }
-        
-        .agent-button {
-            width: 100%;
-            padding: 8px 12px;
-            border: none;
-            border-radius: 6px;
-            font-size: 0.9rem;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        
-        .agent-button.inactive {
-            background: #e9ecef;
-            color: #6c757d;
-        }
-        
-        .agent-button.active {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-            color: white;
-            box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
-        }
-        
-        .agent-button:hover:not(.disabled) {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-        }
-        
-        .agent-button.disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .status-indicator {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-        
-        .status-active {
-            background: #28a745;
-            animation: pulse 2s infinite;
-        }
-        
-        .status-inactive {
-            background: #6c757d;
-        }
-        
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-        
-        .conversation-panel {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-top: 20px;
-        }
-        
-        .conversation-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 15px 20px;
-            border-radius: 10px 10px 0 0;
-        }
-        
-        .conversation-body {
-            padding: 20px;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-        
-        .message {
-            margin-bottom: 15px;
-            padding: 10px 15px;
-            border-radius: 8px;
-            max-width: 80%;
-        }
-        
-        .message.user {
-            background: #e3f2fd;
-            margin-left: auto;
-            text-align: right;
-        }
-        
-        .message.agent {
-            background: #f3e5f5;
-            margin-right: auto;
-        }
-        
-        .message.system {
-            background: #fff3cd;
-            margin: 0 auto;
-            text-align: center;
-            font-style: italic;
-        }
-        
-        .voice-controls {
-            border-top: 1px solid #eee;
-            padding: 20px;
-            text-align: center;
-        }
-        
-        .voice-status {
-            margin-top: 15px;
-            font-size: 14px;
-            color: #6c757d;
-        }
-        
-        .voice-status.recording {
-            color: #dc3545;
-            font-weight: 600;
-        }
-        
-        .audio-controls {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            margin-top: 15px;
-            justify-content: center;
-        }
-        
-        .audio-player {
-            flex: 1;
-            max-width: 300px;
-        }
-        
-        .control-buttons {
-            display: flex;
-            gap: 5px;
-        }
-        
-        .btn-sm {
-            padding: 4px 8px;
-            font-size: 0.8rem;
-        }
-        
-        .call-status {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        
-        .call-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: #28a745;
-            animation: call-pulse 2s infinite;
-        }
-        
-        @keyframes call-pulse {
-            0% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.2); }
-            100% { opacity: 1; transform: scale(1); }
-        }
-    </style>
 </head>
-<body class="bg-light">
-    <div class="container-fluid py-4">
-        <div class="row">
-            <div class="col-12">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h1 class="h3 mb-0">
-                        <i class="fas fa-phone-alt me-2"></i>
-                        RenovaVision AI Voice Demo
-                    </h1>
-                    <div class="d-flex align-items-center">
-                        <span class="status-indicator status-inactive" id="connectionStatus"></span>
-                        <span id="connectionText">Disconnected</span>
+<body>
+    <div class="container-fluid">
+        <!-- App Header -->
+        <div class="app-header">
+            <h1><i class="fas fa-microphone-alt me-3"></i>RenovaVision AI Voice</h1>
+            <p>Intelligent voice agents for multilingual conversations</p>
+        </div>
+
+        <!-- Language Selection Grid -->
+        <div class="language-grid" id="languageGrid">
+            <!-- Language cards will be dynamically generated here -->
+        </div>
+
+        <!-- Call Interface (Hidden by default) -->
+        <div class="call-interface" id="callInterface" style="display: none;">
+            <!-- Call Header -->
+            <div class="call-header">
+                <div class="call-info">
+                    <div class="call-status-indicator"></div>
+                    <div>
+                        <h5 class="call-title" id="callTitle">Voice Call</h5>
+                        <p class="call-subtitle" id="callSubtitle">Connecting...</p>
                     </div>
                 </div>
-                
-                <!-- Agent Control Table -->
-                <div class="agent-table">
-                    <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th style="width: 150px;">Language</th>
-                                <th>OpenAI TTS</th>
-                                <th>Google TTS</th>
-    
-                            </tr>
-                        </thead>
-                        <tbody id="agentTableBody">
-                            <!-- Table rows will be populated by JavaScript -->
-                        </tbody>
-                    </table>
+                <div class="call-controls">
+                    <button class="control-btn end-call" id="endCallBtn" title="End Call">
+                        <i class="fas fa-phone-slash"></i>
+                    </button>
                 </div>
-                
-                <!-- Conversation Panel -->
-                <div class="conversation-panel" id="conversationPanel" style="display: none;">
-                    <div class="conversation-header">
-                        <h5 class="mb-0">
-                            <i class="fas fa-phone-alt me-2"></i>
-                            Presale Manager Call
-                            <span id="activeAgentInfo" class="ms-2 fw-light"></span>
-                        </h5>
+            </div>
+
+            <!-- Chat Area -->
+            <div class="chat-area" id="chatArea">
+                <!-- Messages will appear here -->
+            </div>
+            
+            <!-- Timing Metrics -->
+            <div class="timing-metrics" id="timingMetrics" style="display: none;">
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <span class="metric-label">STT:</span>
+                        <span class="metric-value" id="stt-timing">-</span>
                     </div>
-                    <div class="conversation-body" id="conversationBody">
-                        <!-- Messages will be added here -->
+                    <div class="metric-item">
+                        <span class="metric-label">LLM:</span>
+                        <span class="metric-value" id="llm-timing">-</span>
                     </div>
-                    <div class="voice-controls">
-                        <div class="call-status" id="callStatus" style="display: none;">
-                            <div class="call-indicator"></div>
-                            <span>Call in progress...</span>
-                        </div>
-                        
-                        <div class="voice-status" id="voiceStatus">
-                            Click "Start Call" to begin voice conversation
-                        </div>
-                        
-                        <div class="provider-info" id="providerInfo" style="font-size: 12px; color: #6c757d; margin-top: 10px;">
-                            <!-- Provider info will be populated by JavaScript -->
-                        </div>
-                        
-                        <div class="timing-metrics" id="timingMetrics" style="font-size: 11px; color: #6c757d; margin-top: 8px; display: none;">
-                            <div class="row text-center">
-                                <div class="col-4">
-                                    <strong>TTS:</strong> <span id="tts-timing">-</span>
-                                </div>
-                                <div class="col-4">
-                                    <strong>LLM:</strong> <span id="llm-timing">-</span>
-                                </div>
-                                <div class="col-4">
-                                    <strong>STT:</strong> <span id="stt-timing">-</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="audio-controls" id="audioControls" style="display: none;">
-                            <audio id="audioPlayer" class="audio-player" controls></audio>
-                            <div class="control-buttons">
-                                <button class="btn btn-sm btn-outline-secondary" id="replayButton">
-                                    <i class="fas fa-redo"></i>
-                                </button>
-                            </div>
-                        </div>
+                    <div class="metric-item">
+                        <span class="metric-label">TTS:</span>
+                        <span class="metric-value" id="tts-timing">-</span>
                     </div>
                 </div>
             </div>
+
+            <!-- Voice Controls -->
+            <div class="voice-controls">
+                <div class="voice-status" id="voiceStatus">
+                    Ready to start voice conversation
+                </div>
+                
+                <div class="push-to-talk-container">
+                    <div class="voice-info">
+                        <button class="push-to-talk-btn" id="pushToTalkBtn">
+                            <i class="fas fa-microphone"></i>
+                        </button>
+                        <div class="voice-info-text">Press and hold to speak</div>
+                    </div>
+                </div>
+
+                <!-- Audio Controls -->
+                <div class="audio-controls">
+                    <audio id="audioPlayer" class="audio-player" controls style="display: none;">
+                        Your browser does not support the audio element.
+                    </audio>
+                    <div class="control-buttons">
+                        <button class="btn-secondary" id="replayBtn" style="display: none;">
+                            <i class="fas fa-redo me-2"></i>Replay
+                        </button>
+                        <button class="btn-secondary" id="stopBtn" style="display: none;">
+                            <i class="fas fa-stop me-2"></i>Stop
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Connection Status -->
+        <div id="connectionStatus" class="text-center mt-3" style="display: none;">
+            <div class="loading"></div>
+            <span class="ms-2">Connecting...</span>
         </div>
     </div>
 

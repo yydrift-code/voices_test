@@ -75,14 +75,6 @@ async def websocket_endpoint(websocket: WebSocket):
     tts_manager = initialize_services()
     
     try:
-        # Send welcome message
-        welcome_msg = {
-            "type": "system_message",
-            "text": "Welcome to the Voice Agent Demo! Choose an agent type and start chatting.",
-            "timestamp": datetime.now().isoformat()
-        }
-        await websocket.send_text(json.dumps(welcome_msg))
-        
         while True:
             # Receive message from client
             data = await websocket.receive_text()
@@ -103,13 +95,6 @@ async def websocket_endpoint(websocket: WebSocket):
                 message_data.get("language", "en"),
                 message_data.get("provider", "openai")
             )
-            
-            # Add timing metrics to the response if available
-            if "timing_metrics" in response:
-                response["type"] = "agent_message"
-                response["agent_name"] = response.get("agent_name", "RenovaVision Presale Manager")
-                response["provider"] = response.get("provider", "openai")
-                response["language"] = response.get("language", "en")
             
             # Send response back
             await websocket.send_text(json.dumps(response))
