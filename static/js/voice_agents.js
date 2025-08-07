@@ -334,10 +334,10 @@ class VoiceAgentsDemo {
     }
     
     initializeComparisonTable() {
-        const languages = ['en', 'be', 'pl', 'lt', 'lv', 'et'];
+        const languages = ['en', /* 'be', */ 'pl', 'lt', 'lv', 'et'];
         const languageNames = {
             'en': 'English',
-            'be': 'Belarusian',
+            // 'be': 'Belarusian',
             'pl': 'Polish',
             'lt': 'Lithuanian',
             'lv': 'Latvian',

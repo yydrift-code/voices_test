@@ -25,7 +25,7 @@ class TTSProviderManager:
         }
         
         self.supported_languages = {
-            "be": "Belarusian",
+            # "be": "Belarusian",
             "pl": "Polish", 
             "lt": "Lithuanian",
             "lv": "Latvian",
@@ -36,10 +36,12 @@ class TTSProviderManager:
         # Language mapping for different providers (cached)
         self.language_mapping = {
             "openai": {
-                "be": "be", "pl": "pl", "lt": "lt", "lv": "lv", "et": "et", "en": "en"
+                # "be": "be", 
+                "pl": "pl", "lt": "lt", "lv": "lv", "et": "et", "en": "en"
             },
             "google": {
-                "be": "en-US", "pl": "pl-PL", "lt": "lt-LT", "lv": "lv-LV", "et": "et-EE", "en": "en-US"
+                # "be": "en-US", 
+                "pl": "pl-PL", "lt": "lt-LT", "lv": "lv-LV", "et": "et-EE", "en": "en-US"
             }
         }
         
