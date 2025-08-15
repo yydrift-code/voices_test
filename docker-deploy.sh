@@ -119,7 +119,7 @@ deploy_app() {
 health_check() {
     log "Performing health check..."
     
-    local max_attempts=30
+    local max_attempts=2
     local attempt=1
     
     while [ $attempt -le $max_attempts ]; do
@@ -271,19 +271,23 @@ case "${1:-deploy}" in
         show_status
         ;;
     "logs")
+        check_prerequisites
         $DOCKER_COMPOSE_CMD logs -f
         ;;
     "restart")
+        check_prerequisites
         log "Restarting application..."
         $DOCKER_COMPOSE_CMD restart
         log_success "Application restarted"
         ;;
     "stop")
+        check_prerequisites
         log "Stopping application..."
         $DOCKER_COMPOSE_CMD down
         log_success "Application stopped"
         ;;
     "quick-restart")
+        check_prerequisites
         quick_restart
         ;;
     "cleanup")
