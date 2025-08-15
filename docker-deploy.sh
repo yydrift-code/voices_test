@@ -11,6 +11,9 @@ COMPOSE_FILE="docker-compose.yml"
 BACKUP_DIR="./backups"
 LOG_FILE="./deploy.log"
 
+# Docker Compose command detection
+DOCKER_COMPOSE_CMD=""
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -44,7 +47,14 @@ check_prerequisites() {
         exit 1
     fi
     
-    if ! command -v docker-compose &> /dev/null; then
+    # Check for docker-compose (legacy) or docker compose (newer)
+    if command -v docker-compose &> /dev/null; then
+        DOCKER_COMPOSE_CMD="docker-compose"
+        log "Using legacy docker-compose command"
+    elif docker compose version &> /dev/null; then
+        DOCKER_COMPOSE_CMD="docker compose"
+        log "Using newer docker compose command"
+    else
         log_error "Docker Compose is not installed or not in PATH"
         exit 1
     fi
@@ -67,7 +77,7 @@ create_backup() {
     
     if docker ps -q -f name="$APP_NAME" | grep -q .; then
         log "Stopping current container for backup..."
-        docker-compose down
+        $DOCKER_COMPOSE_CMD down
         
         # Backup current image if it exists
         if docker images | grep -q "$APP_NAME"; then
@@ -99,7 +109,7 @@ deploy_app() {
     log "Deploying application..."
     
     # Start the application
-    docker-compose up -d
+    $DOCKER_COMPOSE_CMD up -d
     
     if [ $? -eq 0 ]; then
         log_success "Application deployed successfully"
@@ -155,13 +165,13 @@ show_status() {
     echo "=================="
     
     # Container status
-    docker-compose ps
+    $DOCKER_COMPOSE_CMD ps
     
     echo ""
     
     # Container logs (last 10 lines)
     log "Recent container logs:"
-    docker-compose logs --tail=10
+    $DOCKER_COMPOSE_CMD logs --tail=10
     
     echo ""
     
@@ -191,7 +201,7 @@ rollback() {
         docker load < "$LATEST_BACKUP"
         
         # Start with previous image
-        docker-compose up -d
+        $DOCKER_COMPOSE_CMD up -d
         
         log_success "Rollback completed"
     else
@@ -275,16 +285,16 @@ case "${1:-deploy}" in
         show_status
         ;;
     "logs")
-        docker-compose logs -f
+        $DOCKER_COMPOSE_CMD logs -f
         ;;
     "restart")
         log "Restarting application..."
-        docker-compose restart
+        $DOCKER_COMPOSE_CMD restart
         log_success "Application restarted"
         ;;
     "stop")
         log "Stopping application..."
-        docker-compose down
+        $DOCKER_COMPOSE_CMD down
         log_success "Application stopped"
         ;;
     "rollback")

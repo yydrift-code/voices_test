@@ -53,8 +53,8 @@ The deployment script performs the following steps:
 
 ## Prerequisites
 
-- Docker installed and running
-- Docker Compose installed
+- Docker installed and running (version 20.10+ recommended)
+- Docker Compose available (either `docker-compose` or `docker compose`)
 - Traefik reverse proxy running (for SSL)
 - Domain pointing to your server
 - Google Cloud credentials file present
