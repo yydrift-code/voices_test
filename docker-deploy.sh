@@ -83,8 +83,14 @@ stop_existing() {
 build_image() {
     log "Building Docker image..."
     
-    # Build with cache for faster development builds
-    docker build -t "$APP_NAME:latest" .
+    # Use development Dockerfile if available, otherwise fall back to default
+    if [ -f "Dockerfile.dev" ]; then
+        log "Using development-optimized Dockerfile"
+        docker build -f Dockerfile.dev -t "$APP_NAME:latest" .
+    else
+        log "Using standard Dockerfile"
+        docker build -t "$APP_NAME:latest" .
+    fi
     
     if [ $? -eq 0 ]; then
         log_success "Docker image built successfully"
