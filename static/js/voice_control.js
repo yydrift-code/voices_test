@@ -306,7 +306,9 @@ class VoiceAgentControl {
             return;
         }
         
-        this.websocket = new WebSocket(`ws://${window.location.host}/ws`);
+        // Use secure WebSocket for HTTPS and handle both local and production
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        this.websocket = new WebSocket(`${protocol}//${window.location.host}/ws`);
         
         this.websocket.onopen = () => {
             this.isConnected = true;
@@ -323,10 +325,24 @@ class VoiceAgentControl {
             }
         };
         
-        this.websocket.onclose = () => {
+        this.websocket.onclose = (event) => {
             this.isConnected = false;
             this.updateConnectionStatus(false);
-            console.log('WebSocket disconnected');
+            console.log('WebSocket disconnected', event.code, event.reason);
+            
+            // Don't auto-reconnect if intentionally closed
+            if (this.isConnectionIntentionallyClosed) {
+                this.isConnectionIntentionallyClosed = false;
+                return;
+            }
+            
+            // Auto-reconnect after delay for unexpected disconnections
+            setTimeout(() => {
+                if (!this.isConnected && this.activeAgent) {
+                    console.log('Attempting to reconnect WebSocket...');
+                    this.connectWebSocket();
+                }
+            }, 2000);
         };
         
         this.websocket.onerror = (error) => {
