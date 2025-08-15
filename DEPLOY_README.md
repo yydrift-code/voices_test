@@ -1,6 +1,6 @@
-# Docker Deployment Guide
+# Docker Development Deployment Guide
 
-This guide explains how to use the `docker-deploy.sh` script to deploy and manage your Voice Testing App.
+This guide explains how to use the `docker-deploy.sh` script to deploy and manage your Voice Testing App in development.
 
 ## Quick Start
 
@@ -31,9 +31,9 @@ Open your browser and go to: **https://voice-test.renovavision.tech**
 ./docker-deploy.sh status          # Show deployment status
 ./docker-deploy.sh logs            # Show application logs
 ./docker-deploy.sh restart         # Restart the application
+./docker-deploy.sh quick-restart   # Quick restart without rebuild
 ./docker-deploy.sh stop            # Stop the application
-./docker-deploy.sh rollback        # Rollback to previous version
-./docker-deploy.sh cleanup         # Clean up old backups
+./docker-deploy.sh cleanup         # Clean up old Docker images
 ./docker-deploy.sh help            # Show help message
 ```
 
@@ -43,13 +43,13 @@ The deployment script performs the following steps:
 
 1. **Prerequisites Check** - Verifies Docker and Docker Compose are installed
 2. **Network Setup** - Creates Traefik network if it doesn't exist
-3. **Backup Creation** - Creates backup of current deployment
-4. **Image Building** - Builds new Docker image with latest code
+3. **Container Management** - Stops existing container if running
+4. **Image Building** - Builds new Docker image with dependency caching
 5. **Application Deployment** - Starts the application using docker-compose
 6. **Health Check** - Verifies the application is responding
 7. **SSL Verification** - Checks SSL certificate status
 8. **Status Report** - Shows deployment status and resource usage
-9. **Cleanup** - Removes old backups (keeps last 5)
+9. **Cleanup** - Removes old Docker images and dangling images
 
 ## Prerequisites
 
@@ -67,11 +67,11 @@ The script uses your existing `docker-compose.yml` file. Make sure it's configur
 - Proper volume mounts
 - Environment variables
 
-### Backup Directory
-Backups are stored in `./backups/` directory. The script automatically:
-- Creates the directory if it doesn't exist
-- Keeps the last 5 backups
-- Removes older backups automatically
+### Image Caching
+The script optimizes for development by:
+- Using Docker layer caching for faster rebuilds
+- Keeping Python dependencies cached between builds
+- Cleaning up old images to save disk space
 
 ## Monitoring
 
@@ -119,28 +119,23 @@ curl -f http://localhost:8000/
    - Check domain DNS settings
    - Ensure Let's Encrypt resolver is configured
 
-### Rollback
+### Quick Restart
 
-If deployment fails, the script automatically attempts rollback:
+For development iterations, use quick restart:
 ```bash
-# Manual rollback
-./docker-deploy.sh rollback
+# Quick restart without rebuilding
+./docker-deploy.sh quick-restart
 
-# Check rollback status
+# Check status
 ./docker-deploy.sh status
 ```
 
 ## Production Considerations
 
-### Security
-- The script creates backups before deployment
-- SSL certificates are automatically verified
-- Health checks ensure application stability
-
-### Backup Strategy
-- Automatic backups before each deployment
-- Manual backup creation available
-- Automatic cleanup of old backups
+### Development Optimization
+- Fast builds with dependency caching
+- Quick restart capability for iterations
+- Automatic cleanup of old images
 
 ### Monitoring
 - Health checks during deployment
@@ -155,7 +150,6 @@ voices_test/
 ├── docker-compose.yml      # Docker Compose configuration
 ├── Dockerfile              # Docker image definition
 ├── .dockerignore          # Docker build exclusions
-├── backups/               # Deployment backups (auto-created)
 ├── deploy.log             # Deployment logs (auto-created)
 └── ...                    # Application files
 ```

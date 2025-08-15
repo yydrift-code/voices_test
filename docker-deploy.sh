@@ -8,7 +8,6 @@ set -e  # Exit on any error
 # Configuration
 APP_NAME="voice-test-app"
 COMPOSE_FILE="docker-compose.yml"
-BACKUP_DIR="./backups"
 LOG_FILE="./deploy.log"
 
 # Docker Compose command detection
@@ -68,24 +67,15 @@ check_prerequisites() {
     log_success "Prerequisites check passed"
 }
 
-# Create backup
-create_backup() {
-    log "Creating backup of current deployment..."
-    
-    mkdir -p "$BACKUP_DIR"
-    BACKUP_NAME="${APP_NAME}_backup_$(date +%Y%m%d_%H%M%S)"
+# Stop existing container
+stop_existing() {
+    log "Stopping existing container..."
     
     if docker ps -q -f name="$APP_NAME" | grep -q .; then
-        log "Stopping current container for backup..."
         $DOCKER_COMPOSE_CMD down
-        
-        # Backup current image if it exists
-        if docker images | grep -q "$APP_NAME"; then
-            docker save "$APP_NAME" > "$BACKUP_DIR/${BACKUP_NAME}.tar"
-            log_success "Backup created: $BACKUP_DIR/${BACKUP_NAME}.tar"
-        fi
+        log_success "Existing container stopped"
     else
-        log "No running container found, skipping backup"
+        log "No running container found"
     fi
 }
 
@@ -93,8 +83,8 @@ create_backup() {
 build_image() {
     log "Building Docker image..."
     
-    # Build with no cache for clean build
-    docker build --no-cache -t "$APP_NAME:latest" .
+    # Build with cache for faster development builds
+    docker build -t "$APP_NAME:latest" .
     
     if [ $? -eq 0 ]; then
         log_success "Docker image built successfully"
@@ -186,40 +176,31 @@ show_status() {
     docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}"
 }
 
-# Rollback function
-rollback() {
-    log_warning "Rolling back deployment..."
+# Quick restart function
+quick_restart() {
+    log "Performing quick restart..."
     
-    # Stop current deployment
-    docker-compose down
+    $DOCKER_COMPOSE_CMD restart
     
-    # Find latest backup
-    LATEST_BACKUP=$(ls -t "$BACKUP_DIR"/*.tar 2>/dev/null | head -1)
-    
-    if [ -n "$LATEST_BACKUP" ]; then
-        log "Restoring from backup: $LATEST_BACKUP"
-        docker load < "$LATEST_BACKUP"
-        
-        # Start with previous image
-        $DOCKER_COMPOSE_CMD up -d
-        
-        log_success "Rollback completed"
+    if [ $? -eq 0 ]; then
+        log_success "Quick restart completed"
     else
-        log_error "No backup found for rollback"
+        log_error "Quick restart failed"
         exit 1
     fi
 }
 
-# Cleanup old backups
-cleanup_backups() {
-    log "Cleaning up old backups (keeping last 5)..."
+# Cleanup old images
+cleanup_images() {
+    log "Cleaning up old Docker images..."
     
-    if [ -d "$BACKUP_DIR" ]; then
-        cd "$BACKUP_DIR"
-        ls -t *.tar 2>/dev/null | tail -n +6 | xargs -r rm -f
-        cd - > /dev/null
-        log_success "Backup cleanup completed"
-    fi
+    # Remove dangling images
+    docker image prune -f
+    
+    # Remove old versions of our app (keep only latest)
+    docker images "$APP_NAME" --format "{{.Repository}}:{{.Tag}}" | grep -v "latest" | xargs -r docker rmi -f
+    
+    log_success "Image cleanup completed"
 }
 
 # Main deployment function
@@ -227,7 +208,7 @@ main_deploy() {
     log "🚀 Starting Docker deployment..."
     
     check_prerequisites
-    create_backup
+    stop_existing
     build_image
     deploy_app
     
@@ -238,12 +219,11 @@ main_deploy() {
     if health_check; then
         check_ssl
         show_status
-        cleanup_backups
+        cleanup_images
         log_success "🎉 Docker deployment completed successfully!"
         log "🌐 Your app is available at: https://voice-test.renovavision.tech"
     else
-        log_error "Health check failed, initiating rollback..."
-        rollback
+        log_error "Health check failed"
         exit 1
     fi
 }
@@ -253,16 +233,16 @@ show_usage() {
     echo "Usage: $0 [COMMAND]"
     echo ""
     echo "Commands:"
-    echo "  deploy     - Full deployment (default)"
-    echo "  build      - Build Docker image only"
-    echo "  deploy-app - Deploy without rebuilding"
-    echo "  status     - Show deployment status"
-    echo "  logs       - Show application logs"
-    echo "  restart    - Restart the application"
-    echo "  stop       - Stop the application"
-    echo "  rollback   - Rollback to previous version"
-    echo "  cleanup    - Clean up old backups"
-    echo "  help       - Show this help message"
+echo "  deploy        - Full deployment (default)"
+echo "  build         - Build Docker image only"
+echo "  deploy-app    - Deploy without rebuilding"
+echo "  status        - Show deployment status"
+echo "  logs          - Show application logs"
+echo "  restart       - Restart the application"
+echo "  quick-restart - Quick restart without rebuild"
+echo "  stop          - Stop the application"
+echo "  cleanup       - Clean up old Docker images"
+echo "  help          - Show this help message"
     echo ""
 }
 
@@ -297,11 +277,11 @@ case "${1:-deploy}" in
         $DOCKER_COMPOSE_CMD down
         log_success "Application stopped"
         ;;
-    "rollback")
-        rollback
+    "quick-restart")
+        quick_restart
         ;;
     "cleanup")
-        cleanup_backups
+        cleanup_images
         ;;
     "help"|"-h"|"--help")
         show_usage
