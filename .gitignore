@@ -5,3 +5,4 @@ __pycache__/tts_providers.cpython-313.pyc
 __pycache__/voice_agents.cpython-313.pyc
 *.pyc
 *.log
+.env
