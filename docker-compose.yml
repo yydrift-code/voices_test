@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  voice-test-app:
+    build: .
+    container_name: voice-test-app
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/long-flash-452213-u9-8ae0b27b310f.json
+    volumes:
+      - ./static/audio:/app/static/audio
+      - ./long-flash-452213-u9-8ae0b27b310f.json:/app/long-flash-452213-u9-8ae0b27b310f.json:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      # # HTTP router for testing
+      # - "traefik.http.routers.realtime-assistant.rule=Host(`localhost`) || Host(`realtime-demo.renovavision.tech`)"
+      # - "traefik.http.routers.realtime-assistant.entrypoints=web"
+      # - "traefik.http.services.realtime-assistant.loadbalancer.server.port=8888"
+      # HTTPS router for production
+      - "traefik.http.routers.realtime-assistant-secure.rule=Host(`voice-test.renovavision.tech`)"
+      - "traefik.http.routers.realtime-assistant-secure.entrypoints=websecure"
+      - "traefik.http.routers.realtime-assistant-secure.tls.certresolver=letsencrypt"
+    networks:
+      - voice-test-network
+      - traefik
+
+networks:
+  voice-test-network:
+    driver: bridge
