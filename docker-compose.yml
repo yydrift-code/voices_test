@@ -30,9 +30,8 @@ services:
       - "traefik.http.routers.realtime-assistant-secure.entrypoints=websecure"
       - "traefik.http.routers.realtime-assistant-secure.tls.certresolver=letsencrypt"
     networks:
-      - voice-test-network
       - traefik
 
 networks:
-  voice-test-network:
-    driver: bridge
+  traefik:
+    external: true
