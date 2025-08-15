@@ -15,6 +15,9 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - GOOGLE_APPLICATION_CREDENTIALS=/app/long-flash-452213-u9-8ae0b27b310f.json
+      # Fallback environment variables (will be overridden by .env file)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-/app/long-flash-452213-u9-8ae0b27b310f.json}
     volumes:
       - ./static/audio:/app/static/audio
       - ./long-flash-452213-u9-8ae0b27b310f.json:/app/long-flash-452213-u9-8ae0b27b310f.json:ro
