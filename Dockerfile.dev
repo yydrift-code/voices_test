@@ -1,15 +1,14 @@
 # Development-optimized Dockerfile for Voice Testing App
-# Uses multi-stage building and dependency caching for faster development iterations
+# Single stage with optimal layer caching
 
-# Stage 1: Dependencies
-FROM python:3.11-slim as dependencies
+FROM python:3.11-slim
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies
+# Install system dependencies in one layer (will be cached)
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     libsndfile1 \
@@ -19,41 +18,27 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     curl \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
 
-# Copy requirements first for better caching
+# Copy ONLY requirements first (for maximum caching)
 COPY requirements.txt .
 
-# Install Python dependencies
-# This layer will be cached unless requirements.txt changes
+# Install Python dependencies (this layer will be cached unless requirements.txt changes)
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
 
-# Stage 2: Application
-FROM python:3.11-slim as app
-
-# Copy system dependencies from dependencies stage
-RUN apt-get update && apt-get install -y \
-    ffmpeg \
-    libsndfile1 \
-    libasound2-dev \
-    portaudio19-dev \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set working directory
-WORKDIR /app
-
-# Copy Python packages from dependencies stage
-COPY --from=dependencies /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=dependencies /usr/local/bin /usr/local/bin
-
-# Copy application code
-# This layer will be rebuilt when code changes
-COPY . .
+# Copy application code LAST (this layer rebuilds when code changes)
+COPY main.py .
+COPY tts_providers.py .
+COPY voice_agents.py .
+COPY voice_agent.py .
+COPY templates/ templates/
+COPY static/ static/
+COPY long-flash-452213-u9-8ae0b27b310f.json .
 
 # Create necessary directories
 RUN mkdir -p static/audio
