@@ -268,6 +268,7 @@ case "${1:-deploy}" in
         show_status
         ;;
     "status")
+        check_prerequisites
         show_status
         ;;
     "logs")

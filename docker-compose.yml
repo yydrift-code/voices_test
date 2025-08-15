@@ -8,6 +8,8 @@ services:
       cache_from:
         - python:3.11-alpine
     container_name: voice-test-app
+    ports:
+      - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
       - GOOGLE_APPLICATION_CREDENTIALS=/app/long-flash-452213-u9-8ae0b27b310f.json
@@ -31,6 +33,9 @@ services:
       - "traefik.http.routers.voice-test-app-secure.rule=Host(`voice-test.renovavision.tech`)"
       - "traefik.http.routers.voice-test-app-secure.entrypoints=websecure"
       - "traefik.http.routers.voice-test-app-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.voice-test-app-secure.service=voice-test-app-service"
+      - "traefik.http.services.voice-test-app-service.loadbalancer.server.port=8000"
+    
     networks:
       - traefik
 
