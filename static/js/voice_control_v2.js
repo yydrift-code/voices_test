@@ -282,7 +282,7 @@ class VoiceAgentControl {
         
         // Update call header
         this.callTitle.textContent = `${this.activeAgent.languageName} Voice Call`;
-        this.callSubtitle.textContent = `Connected via ${this.activeAgent.provider.toUpperCase()}`;
+        this.callSubtitle.textContent = `Connecting to ${this.activeAgent.provider.toUpperCase()}...`;
         
         // Show audio controls and timing metrics
         this.showAudioControls();
@@ -333,6 +333,11 @@ class VoiceAgentControl {
             this.isConnected = true;
             this.updateConnectionStatus(true);
             console.log('WebSocket connected successfully');
+            
+            // Update call subtitle if in a call
+            if (this.activeAgent && this.callSubtitle) {
+                this.callSubtitle.textContent = `Connected via ${this.activeAgent.provider.toUpperCase()}`;
+            }
         };
         
         this.websocket.onmessage = (event) => {

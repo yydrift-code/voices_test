@@ -34,7 +34,7 @@
                     <div class="call-status-indicator"></div>
                     <div>
                         <h5 class="call-title" id="callTitle">Voice Call</h5>
-                        <p class="call-subtitle" id="callSubtitle">Connecting...</p>
+                        <p class="call-subtitle" id="callSubtitle">Initializing...</p>
                     </div>
                 </div>
                 <div class="call-controls">
@@ -101,8 +101,10 @@
 
         <!-- Connection Status -->
         <div id="connectionStatus" class="text-center mt-3" style="display: none;">
-            <div class="loading"></div>
-            <span class="ms-2">Connecting...</span>
+            <div class="text-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Connection lost. Please refresh the page.
+            </div>
         </div>
     </div>
 
