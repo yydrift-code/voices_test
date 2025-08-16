@@ -19,7 +19,8 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-/app/long-flash-452213-u9-8ae0b27b310f.json}
     volumes:
-      - ./static/audio:/app/static/audio
+      - ./static:/app/static
+      - ./templates:/app/templates
       - ./long-flash-452213-u9-8ae0b27b310f.json:/app/long-flash-452213-u9-8ae0b27b310f.json:ro
     restart: unless-stopped
     healthcheck:
