@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <h1>WebSocket Connection Test</h1>
+    <div id="status">Disconnected</div>
+    <button onclick="connect()">Connect</button>
+    <button onclick="disconnect()">Disconnect</button>
+    <button onclick="sendTest()">Send Test Message</button>
+    <div id="log"></div>
+
+    <script>
+        let ws = null;
+        
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            log(`Attempting to connect to: ${wsUrl}`);
+            log(`Current protocol: ${window.location.protocol}`);
+            log(`Current hostname: ${window.location.hostname}`);
+            
+            try {
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function(event) {
+                    log('✅ WebSocket connected successfully!');
+                    document.getElementById('status').textContent = 'Connected';
+                };
+                
+                ws.onmessage = function(event) {
+                    log(`📥 Received: ${event.data}`);
+                };
+                
+                ws.onclose = function(event) {
+                    log(`❌ WebSocket closed: Code=${event.code}, Reason="${event.reason}"`);
+                    document.getElementById('status').textContent = 'Disconnected';
+                };
+                
+                ws.onerror = function(error) {
+                    log(`🚫 WebSocket error: ${error}`);
+                    log(`WebSocket readyState: ${ws ? ws.readyState : 'null'}`);
+                };
+            } catch (error) {
+                log(`🚫 Failed to create WebSocket: ${error}`);
+            }
+        }
+        
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+        
+        function sendTest() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const testMessage = {
+                    text: "Hello from WebSocket test",
+                    language: "en",
+                    provider: "openai",
+                    agent_type: "presale_manager"
+                };
+                ws.send(JSON.stringify(testMessage));
+                log(`📤 Sent test message`);
+            } else {
+                log(`❌ WebSocket not connected. ReadyState: ${ws ? ws.readyState : 'null'}`);
+            }
+        }
+    </script>
+</body>
+</html>

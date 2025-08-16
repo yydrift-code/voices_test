@@ -319,7 +319,7 @@ class VoiceAgentControl {
         this.websocket.onopen = () => {
             this.isConnected = true;
             this.updateConnectionStatus(true);
-            console.log('WebSocket connected');
+            console.log('WebSocket connected successfully');
         };
         
         this.websocket.onmessage = (event) => {
@@ -353,6 +353,8 @@ class VoiceAgentControl {
         
         this.websocket.onerror = (error) => {
             console.error('WebSocket error:', error);
+            console.error('WebSocket readyState:', this.websocket.readyState);
+            console.error('WebSocket URL was:', wsUrl);
             this.showError('Connection error');
         };
     }

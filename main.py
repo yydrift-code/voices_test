@@ -65,6 +65,11 @@ async def get_home(request: Request):
     """Main voice agent control page"""
     return templates.TemplateResponse("index.html", {"request": request})
 
+@app.get("/ws-test", response_class=HTMLResponse)
+async def ws_test_page(request: Request):
+    """WebSocket test page for debugging"""
+    return templates.TemplateResponse("ws_test.html", {"request": request})
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for real-time conversation"""
