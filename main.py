@@ -120,7 +120,8 @@ async def websocket_endpoint(websocket: WebSocket):
             response = await agent.process_message(
                 message_data.get("text", ""),
                 message_data.get("language", "en"),
-                message_data.get("provider", "openai")
+                message_data.get("provider", "openai"),
+                message_data.get("voice", None)
             )
             
             # Send response back
@@ -333,6 +334,20 @@ async def get_providers():
     return {
         "providers": tts_manager.get_available_providers(),
         "languages": tts_manager.get_supported_languages()
+    }
+
+@app.get("/api/voices/{provider}")
+async def get_voices(provider: str):
+    """Get available voices for a provider"""
+    # Initialize services
+    tts_manager = initialize_services()
+    
+    if provider not in tts_manager.get_available_providers():
+        return {"error": f"Provider {provider} not available"}
+    
+    return {
+        "provider": provider,
+        "voices": tts_manager.get_available_voices(provider)
     }
 
 @app.get("/api/agents")

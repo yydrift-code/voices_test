@@ -77,7 +77,7 @@ Remember: You are having a voice conversation. Keep responses under 15 words max
             "llm": "GPT-4o-mini" if self.openai_available else "Fallback responses"
         }
     
-    async def process_message(self, text: str, language: str = "en", provider: str = "openai") -> Dict:
+    async def process_message(self, text: str, language: str = "en", provider: str = "openai", voice: str = None) -> Dict:
         """Process a user message and generate an intelligent response with TTS (optimized)"""
         try:
             # Add message to conversation history (optimized)
@@ -108,7 +108,8 @@ Remember: You are having a voice conversation. Keep responses under 15 words max
             audio_data = await self.tts_manager.generate_speech(
                 text=response_text,
                 language=language,
-                provider=provider
+                provider=provider,
+                voice=voice
             )
             tts_end_time = time.time()
             timing_metrics['tts_time'] = round((tts_end_time - tts_start_time) * 1000, 2)

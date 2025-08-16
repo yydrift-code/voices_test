@@ -36,15 +36,41 @@ class VoiceAgentControl {
         this.stopBtn = document.getElementById('stopBtn');
         this.connectionStatus = document.getElementById('connectionStatus');
         this.timingMetrics = document.getElementById('timingMetrics');
+        this.voiceSelectionInterface = document.getElementById('voiceSelectionInterface');
+        this.voiceSelectionTitle = document.getElementById('voiceSelectionTitle');
+        this.voiceGrid = document.getElementById('voiceGrid');
+        this.backToLanguagesBtn = document.getElementById('backToLanguagesBtn');
+        this.startCallWithVoiceBtn = document.getElementById('startCallWithVoiceBtn');
         
         // Create push-to-talk button
         this.createPushToTalkButton();
+        
+
+        
+        // Setup voice selection interface
+        this.setupVoiceSelectionInterface();
     }
     
     createPushToTalkButton() {
         // The push-to-talk button is already in the HTML
         // Just set up the event listeners
         this.setupPushToTalkEvents();
+    }
+    
+
+    
+    setupVoiceSelectionInterface() {
+        if (this.backToLanguagesBtn) {
+            this.backToLanguagesBtn.addEventListener('click', () => {
+                this.showLanguageGrid();
+            });
+        }
+        
+        if (this.startCallWithVoiceBtn) {
+            this.startCallWithVoiceBtn.addEventListener('click', () => {
+                this.startCallWithSelectedVoice();
+            });
+        }
     }
     
     setupPushToTalkEvents() {
@@ -190,9 +216,159 @@ class VoiceAgentControl {
                 this.endCall();
             }
             
-            // Start new call
-            this.startCall(languageCode, provider, languageName);
+            // Show voice selection instead of starting call directly
+            this.showVoiceSelection(languageCode, provider, languageName);
         }
+    }
+    
+    async showVoiceSelection(languageCode, provider, languageName) {
+        console.log('Showing voice selection for:', languageCode, provider, languageName);
+        
+        // Store the selection for later use
+        this.pendingCall = {
+            languageCode,
+            provider,
+            languageName
+        };
+        
+        // Update title
+        this.voiceSelectionTitle.textContent = `Select Voice for ${languageName} - ${provider.toUpperCase()}`;
+        
+        // Hide language grid and show voice selection
+        this.languageGrid.style.display = 'none';
+        this.voiceSelectionInterface.style.display = 'block';
+        
+        // Load and display voices
+        await this.loadVoicesForSelection(provider);
+    }
+    
+    async loadVoicesForSelection(provider) {
+        try {
+            const response = await fetch(`/api/voices/${provider}`);
+            const data = await response.json();
+            
+            if (data.error) {
+                console.error('Error loading voices:', data.error);
+                this.voiceGrid.innerHTML = '<p>Error loading voices</p>';
+                return;
+            }
+            
+            // Clear existing voices
+            this.voiceGrid.innerHTML = '';
+            
+            // Create voice cards
+            data.voices.forEach(voice => {
+                const voiceCard = document.createElement('div');
+                voiceCard.className = 'voice-card';
+                voiceCard.dataset.voiceId = voice.id;
+                
+                voiceCard.innerHTML = `
+                    <h4>${voice.name}</h4>
+                    <p>${voice.description}</p>
+                `;
+                
+                voiceCard.addEventListener('click', () => {
+                    this.selectVoice(voice.id);
+                });
+                
+                this.voiceGrid.appendChild(voiceCard);
+            });
+            
+            console.log(`Loaded ${data.voices.length} voices for selection`);
+            
+        } catch (error) {
+            console.error('Error loading voices for selection:', error);
+            this.voiceGrid.innerHTML = '<p>Failed to load voices</p>';
+        }
+    }
+    
+    selectVoice(voiceId) {
+        // Remove selection from all cards
+        this.voiceGrid.querySelectorAll('.voice-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+        
+        // Add selection to clicked card
+        const selectedCard = this.voiceGrid.querySelector(`[data-voice-id="${voiceId}"]`);
+        if (selectedCard) {
+            selectedCard.classList.add('selected');
+        }
+        
+        // Store selected voice and enable start call button
+        this.selectedVoice = voiceId;
+        this.startCallWithVoiceBtn.disabled = false;
+        
+        console.log('Selected voice:', voiceId);
+    }
+    
+    startCallWithSelectedVoice() {
+        if (!this.pendingCall || !this.selectedVoice) {
+            console.error('No pending call or selected voice');
+            return;
+        }
+        
+        console.log('Starting call with voice:', this.selectedVoice);
+        
+        // Hide voice selection and start the call
+        this.voiceSelectionInterface.style.display = 'none';
+        
+        // Start the call with the selected voice
+        this.startCallWithVoice(
+            this.pendingCall.languageCode,
+            this.pendingCall.provider,
+            this.pendingCall.languageName,
+            this.selectedVoice
+        );
+    }
+    
+    showLanguageGrid() {
+        this.voiceSelectionInterface.style.display = 'none';
+        this.languageGrid.style.display = 'grid';
+        
+        // Clear pending call and selected voice
+        this.pendingCall = null;
+        this.selectedVoice = null;
+        this.startCallWithVoiceBtn.disabled = true;
+    }
+    
+    async startCallWithVoice(languageCode, provider, languageName, voiceId) {
+        // This is similar to startCall but with pre-selected voice
+        this.disableAllButtons();
+        
+        const activeButton = document.querySelector(`[data-language="${languageCode}"][data-provider="${provider}"]`);
+        if (activeButton) {
+            activeButton.classList.add('active');
+            activeButton.innerHTML = `${this.getProviderIcon(provider)} END CALL`;
+        }
+        
+        // Set active agent with voice
+        this.activeAgent = {
+            language: languageCode,
+            provider: provider,
+            languageName: languageName,
+            voice: voiceId
+        };
+        
+        // Clean audio player before starting new call
+        this.cleanAudioPlayer();
+        
+        // Reset timing metrics
+        this.resetTimingMetrics();
+        this.currentSttTime = null;
+        
+        // Show call interface
+        this.showCallInterface();
+        
+
+        
+        // Connect WebSocket
+        this.connectWebSocket();
+        
+        // Add welcome message
+        this.addMessage('agent', `Hello! I'm your RenovaVision AI Voice Solutions presale manager speaking with the ${voiceId} voice. I can help you explore our voice AI agents in ${languageName}. Press and hold the "Say" button to speak!`);
+        
+        // Initialize microphone only when call is active
+        await this.initializeMicrophone();
     }
     
     async startCall(languageCode, provider, languageName) {
@@ -222,6 +398,8 @@ class VoiceAgentControl {
         // Show call interface
         this.showCallInterface();
         
+
+        
         // Connect WebSocket
         this.connectWebSocket();
         
@@ -232,6 +410,8 @@ class VoiceAgentControl {
         await this.initializeMicrophone();
     }
     
+
+
     endCall() {
         // Reset button states
         this.enableAllButtons();
@@ -280,6 +460,8 @@ class VoiceAgentControl {
         this.callInterface.style.display = 'block';
         this.languageGrid.style.display = 'none';
         
+        // Voice selector is always visible during calls
+        
         // Update call header
         this.callTitle.textContent = `${this.activeAgent.languageName} Voice Call`;
         this.callSubtitle.textContent = `Connected via ${this.activeAgent.provider.toUpperCase()}`;
@@ -289,9 +471,16 @@ class VoiceAgentControl {
         this.showTimingMetrics();
     }
     
+    async loadDefaultVoices() {
+        // Load OpenAI voices as default since they work for all languages
+        await this.loadVoices('openai');
+    }
+    
     hideCallInterface() {
         this.callInterface.style.display = 'none';
         this.languageGrid.style.display = 'grid';
+        
+
         
         // Clear chat area
         this.chatArea.innerHTML = '';
@@ -346,14 +535,17 @@ class VoiceAgentControl {
         
         this.websocket.onclose = (event) => {
             this.isConnected = false;
-            this.updateConnectionStatus(false);
             console.log('WebSocket disconnected', event.code, event.reason);
             
-            // Don't auto-reconnect if intentionally closed
+            // Don't show error message or auto-reconnect if intentionally closed
             if (this.isConnectionIntentionallyClosed) {
                 this.isConnectionIntentionallyClosed = false;
+                this.updateConnectionStatus(true); // Hide connection status on intentional close
                 return;
             }
+            
+            // Only show connection lost message for unexpected disconnections
+            this.updateConnectionStatus(false);
             
             // Auto-reconnect after delay for unexpected disconnections
             setTimeout(() => {
@@ -377,6 +569,8 @@ class VoiceAgentControl {
             this.isConnectionIntentionallyClosed = true;
             this.websocket.close();
             this.websocket = null;
+            // Immediately hide any connection status messages
+            this.updateConnectionStatus(true);
         }
     }
     
@@ -666,10 +860,14 @@ class VoiceAgentControl {
                 
                 // Send to WebSocket for processing
                 if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+                    // Use pre-selected voice from activeAgent
+                    const selectedVoice = this.activeAgent.voice;
+                    
                     this.websocket.send(JSON.stringify({
                         text: data.text,
                         language: this.activeAgent.language,
                         provider: this.activeAgent.provider,
+                        voice: selectedVoice,
                         agent_type: 'presale_manager'
                     }));
                 }

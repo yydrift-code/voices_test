@@ -26,6 +26,27 @@
             <!-- Language cards will be dynamically generated here -->
         </div>
 
+        <!-- Voice Selection Interface (Hidden by default) -->
+        <div class="voice-selection-interface" id="voiceSelectionInterface" style="display: none;">
+            <div class="voice-selection-header">
+                <h2 id="voiceSelectionTitle">Select Voice for English - OpenAI</h2>
+                <p>Choose your preferred assistant voice before starting the call</p>
+            </div>
+            
+            <div class="voice-grid" id="voiceGrid">
+                <!-- Voice options will be loaded here -->
+            </div>
+            
+            <div class="voice-selection-actions">
+                <button class="btn-secondary" id="backToLanguagesBtn">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Languages
+                </button>
+                <button class="btn-primary" id="startCallWithVoiceBtn" disabled>
+                    <i class="fas fa-phone me-2"></i>Start Call
+                </button>
+            </div>
+        </div>
+
         <!-- Call Interface (Hidden by default) -->
         <div class="call-interface" id="callInterface" style="display: none;">
             <!-- Call Header -->
@@ -72,6 +93,8 @@
                 <div class="voice-status" id="voiceStatus">
                     Ready to start voice conversation
                 </div>
+                
+
                 
                 <div class="push-to-talk-container">
                     <div class="voice-info">
@@ -133,6 +156,6 @@
         }
     </script>
     
-    <script src="/static/js/voice_control_v2.js?v=2024011504&t={{ timestamp }}"></script>
+    <script src="/static/js/voice_control.js?v=2024081602&t={{ timestamp }}"></script>
 </body>
 </html> 
