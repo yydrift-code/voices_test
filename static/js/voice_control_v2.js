@@ -245,6 +245,9 @@ class VoiceAgentControl {
         // Hide call interface
         this.hideCallInterface();
         
+        // Hide any connection status messages
+        this.updateConnectionStatus(true);
+        
         // Disconnect WebSocket
         this.disconnectWebSocket();
         
@@ -351,14 +354,16 @@ class VoiceAgentControl {
         
         this.websocket.onclose = (event) => {
             this.isConnected = false;
-            this.updateConnectionStatus(false);
             console.log('WebSocket disconnected', event.code, event.reason);
             
-            // Don't auto-reconnect if intentionally closed
+            // Don't show error or auto-reconnect if intentionally closed
             if (this.isConnectionIntentionallyClosed) {
                 this.isConnectionIntentionallyClosed = false;
                 return;
             }
+            
+            // Only show connection lost message for unexpected disconnections
+            this.updateConnectionStatus(false);
             
             // Auto-reconnect after delay for unexpected disconnections
             setTimeout(() => {
