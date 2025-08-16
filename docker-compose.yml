@@ -30,18 +30,27 @@ services:
       start_period: 40s
     labels:
       - "traefik.enable=true"
-      # # HTTP router for testing
+      # HTTP router for testing
       - "traefik.http.routers.voice-test-app.rule=Host(`localhost`) || Host(`voice-test.renovavision.tech`)"
       - "traefik.http.routers.voice-test-app.entrypoints=web"
       - "traefik.http.services.voice-test-app.loadbalancer.server.port=8000"
-      # HTTPS router for production
-      - "traefik.http.routers.voice-test-app-secure.rule=Host(`voice-test.renovavision.tech`)"
+      
+      # HTTPS router for production - Main HTTP traffic
+      - "traefik.http.routers.voice-test-app-secure.rule=Host(`voice-test.renovavision.tech`) && !PathPrefix(`/ws`)"
       - "traefik.http.routers.voice-test-app-secure.entrypoints=websecure"
       - "traefik.http.routers.voice-test-app-secure.tls.certresolver=letsencrypt"
       - "traefik.http.routers.voice-test-app-secure.service=voice-test-app-service"
+      
+      # Separate router for WebSocket connections
+      - "traefik.http.routers.voice-test-ws-secure.rule=Host(`voice-test.renovavision.tech`) && PathPrefix(`/ws`)"
+      - "traefik.http.routers.voice-test-ws-secure.entrypoints=websecure"
+      - "traefik.http.routers.voice-test-ws-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.voice-test-ws-secure.service=voice-test-ws-service"
+      
+      # Services configuration
       - "traefik.http.services.voice-test-app-service.loadbalancer.server.port=8000"
-      # WebSocket support - Traefik v2 handles WebSocket upgrades automatically
-      - "traefik.http.services.voice-test-app-service.loadbalancer.passhostheader=true"
+      - "traefik.http.services.voice-test-ws-service.loadbalancer.server.port=8000"
+      - "traefik.http.services.voice-test-ws-service.loadbalancer.passhostheader=true"
     
     networks:
       - traefik
