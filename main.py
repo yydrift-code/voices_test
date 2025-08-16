@@ -33,8 +33,26 @@ if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
 
 app = FastAPI(title="RenovaVision TTS Demo", description="Compare TTS providers for AI Voice Agents")
 
+# Custom static file handler for cache control
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import Response
+import mimetypes
+
+class NoCacheStaticFiles(StaticFiles):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        # Add no-cache headers for JavaScript files
+        if hasattr(response, 'headers') and response.headers.get('content-type', '').startswith('application/javascript'):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
 # Mount static files and templates
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", NoCacheStaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 # Initialize TTS provider manager after environment variables are loaded
@@ -63,7 +81,11 @@ class SpeechToTextRequest(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 async def get_home(request: Request):
     """Main voice agent control page"""
-    return templates.TemplateResponse("index.html", {"request": request})
+    import time
+    return templates.TemplateResponse("index.html", {
+        "request": request, 
+        "timestamp": int(time.time())
+    })
 
 @app.get("/ws-test", response_class=HTMLResponse)
 async def ws_test_page(request: Request):

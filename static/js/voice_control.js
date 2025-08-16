@@ -311,9 +311,22 @@ class VoiceAgentControl {
         const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'voice-test.renovavision.tech';
         const protocol = isSecure ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws`;
+        
+        console.log('=== WebSocket Connection Debug Info ===');
         console.log('WebSocket URL:', wsUrl);
         console.log('Current protocol:', window.location.protocol);
+        console.log('Current hostname:', window.location.hostname);
         console.log('Is secure:', isSecure);
+        console.log('Protocol to use:', protocol);
+        console.log('==========================================');
+        
+        // Additional safety check for HTTPS sites
+        if (window.location.protocol === 'https:' && protocol === 'ws:') {
+            console.error('ERROR: Trying to use WS on HTTPS site! This will fail.');
+            this.showError('Cache issue detected. Please hard refresh the page (Ctrl+F5 or Cmd+Shift+R)');
+            return;
+        }
+        
         this.websocket = new WebSocket(wsUrl);
         
         this.websocket.onopen = () => {
