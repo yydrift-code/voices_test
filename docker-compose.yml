@@ -32,10 +32,14 @@ services:
     labels:
       - "traefik.enable=true"
       
+      # Middleware for HTTPS redirect (define first)
+      - "traefik.http.middlewares.voice-test-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.voice-test-redirect.redirectscheme.permanent=true"
+      
       # HTTP router (with redirect to HTTPS)
       - "traefik.http.routers.voice-test-app-http.rule=Host(`voice-test.renovavision.tech`)"
       - "traefik.http.routers.voice-test-app-http.entrypoints=web"
-      - "traefik.http.routers.voice-test-app-http.middlewares=redirect-to-https"
+      - "traefik.http.routers.voice-test-app-http.middlewares=voice-test-redirect"
       
       # HTTPS router for production (Traefik v3 compatible)
       - "traefik.http.routers.voice-test-app-secure.rule=Host(`voice-test.renovavision.tech`)"
@@ -45,10 +49,6 @@ services:
       
       # Service configuration (Traefik v3 handles WebSocket upgrades automatically)
       - "traefik.http.services.voice-test-app.loadbalancer.server.port=8000"
-      
-      # Middleware for HTTPS redirect
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
     
     networks:
       - traefik
