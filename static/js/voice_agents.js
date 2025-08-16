@@ -109,8 +109,11 @@ class VoiceAgentsDemo {
     }
     
     connectWebSocket() {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        // Force secure WebSocket for HTTPS and handle both local and production
+        const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'voice-test.renovavision.tech';
+        const protocol = isSecure ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws`;
+        console.log('WebSocket URL:', wsUrl);
         
         // Reset flag when starting a new connection
         this.isConnectionIntentionallyClosed = false;

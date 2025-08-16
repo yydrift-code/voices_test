@@ -306,9 +306,15 @@ class VoiceAgentControl {
             return;
         }
         
-        // Use secure WebSocket for HTTPS and handle both local and production
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        this.websocket = new WebSocket(`${protocol}//${window.location.host}/ws`);
+        // Force secure WebSocket for HTTPS and handle both local and production
+        // Explicitly check for HTTPS to ensure we use WSS
+        const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'voice-test.renovavision.tech';
+        const protocol = isSecure ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        console.log('WebSocket URL:', wsUrl);
+        console.log('Current protocol:', window.location.protocol);
+        console.log('Is secure:', isSecure);
+        this.websocket = new WebSocket(wsUrl);
         
         this.websocket.onopen = () => {
             this.isConnected = true;

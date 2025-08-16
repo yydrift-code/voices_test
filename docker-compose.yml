@@ -40,6 +40,10 @@ services:
       - "traefik.http.routers.voice-test-app-secure.tls.certresolver=letsencrypt"
       - "traefik.http.routers.voice-test-app-secure.service=voice-test-app-service"
       - "traefik.http.services.voice-test-app-service.loadbalancer.server.port=8000"
+      # Add WebSocket support
+      - "traefik.http.middlewares.websocket.headers.customrequestheaders.Upgrade=websocket"
+      - "traefik.http.middlewares.websocket.headers.customrequestheaders.Connection=upgrade"
+      - "traefik.http.routers.voice-test-app-secure.middlewares=websocket"
     
     networks:
       - traefik
