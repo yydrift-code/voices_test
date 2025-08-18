@@ -339,16 +339,33 @@ async def get_providers():
 @app.get("/api/voices/{provider}")
 async def get_voices(provider: str):
     """Get available voices for a provider"""
-    # Initialize services
-    tts_manager = initialize_services()
-    
-    if provider not in tts_manager.get_available_providers():
-        return {"error": f"Provider {provider} not available"}
-    
-    return {
-        "provider": provider,
-        "voices": tts_manager.get_available_voices(provider)
-    }
+    try:
+        print(f"API: Getting voices for provider: {provider}")
+        
+        # Initialize services
+        tts_manager = initialize_services()
+        print(f"API: TTS manager initialized: {tts_manager}")
+        
+        available_providers = tts_manager.get_available_providers()
+        print(f"API: Available providers: {available_providers}")
+        
+        if provider not in available_providers:
+            print(f"API: Provider {provider} not in available providers")
+            return {"error": f"Provider {provider} not available"}
+        
+        voices = tts_manager.get_available_voices(provider)
+        print(f"API: Retrieved {len(voices)} voices for {provider}")
+        
+        return {
+            "provider": provider,
+            "voices": voices
+        }
+    except Exception as e:
+        print(f"API: Error getting voices for {provider}: {e}")
+        print(f"API: Error type: {type(e)}")
+        import traceback
+        print(f"API: Traceback: {traceback.format_exc()}")
+        return {"error": f"Internal server error: {str(e)}"}
 
 @app.get("/api/agents")
 async def get_agents():

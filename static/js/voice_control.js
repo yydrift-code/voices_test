@@ -244,13 +244,50 @@ class VoiceAgentControl {
     
     async loadVoicesForSelection(provider) {
         try {
+            console.log('=== LOADING VOICES ===');
+            console.log('Provider:', provider);
+            console.log('Voice grid element:', this.voiceGrid);
+            console.log('Current location:', window.location.href);
+            console.log('Base URL:', window.location.origin);
+            console.log('Network status:', navigator.onLine);
+            console.log('======================');
+            
+            if (!this.voiceGrid) {
+                throw new Error('Voice grid element not found');
+            }
+            
             const response = await fetch(`/api/voices/${provider}`);
-            const data = await response.json();
+            console.log('Fetch response status:', response.status, response.statusText);
+            console.log('Response headers:', [...response.headers.entries()]);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('HTTP error response body:', errorText);
+                throw new Error(`HTTP ${response.status}: ${response.statusText}. Body: ${errorText}`);
+            }
+            
+            const responseText = await response.text();
+            console.log('Raw response text:', responseText);
+            
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('JSON parse error:', parseError);
+                console.error('Response was not valid JSON:', responseText);
+                throw new Error(`Invalid JSON response: ${parseError.message}. Response: ${responseText.substring(0, 200)}`);
+            }
+            
+            console.log('Parsed data:', data);
             
             if (data.error) {
-                console.error('Error loading voices:', data.error);
+                console.error('API returned error:', data.error);
                 this.voiceGrid.innerHTML = '<p>Error loading voices</p>';
                 return;
+            }
+            
+            if (!data.voices || !Array.isArray(data.voices)) {
+                throw new Error('Invalid voice data received');
             }
             
             // Clear existing voices
@@ -274,11 +311,30 @@ class VoiceAgentControl {
                 this.voiceGrid.appendChild(voiceCard);
             });
             
-            console.log(`Loaded ${data.voices.length} voices for selection`);
+            console.log(`Successfully loaded ${data.voices.length} voices for selection`);
             
         } catch (error) {
-            console.error('Error loading voices for selection:', error);
-            this.voiceGrid.innerHTML = '<p>Failed to load voices</p>';
+            console.error('=== VOICE LOADING ERROR ===');
+            console.error('Provider:', provider);
+            console.error('Error:', error);
+            console.error('Error message:', error.message);
+            console.error('Error stack:', error.stack);
+            console.error('Voice grid element:', this.voiceGrid);
+            console.error('Current URL:', window.location.href);
+            console.error('User agent:', navigator.userAgent);
+            console.error('=========================');
+            
+            if (this.voiceGrid) {
+                this.voiceGrid.innerHTML = `
+                    <div style="color: #ff6b6b; padding: 20px; text-align: center;">
+                        <p><strong>Failed to load voices</strong></p>
+                        <p style="font-size: 0.9em; opacity: 0.8;">Check browser console for details</p>
+                        <p style="font-size: 0.8em; font-family: monospace; background: rgba(0,0,0,0.1); padding: 8px; border-radius: 4px;">${error.message}</p>
+                    </div>
+                `;
+            } else {
+                console.error('Voice grid element not available for error display');
+            }
         }
     }
     
@@ -411,7 +467,7 @@ class VoiceAgentControl {
     }
     
 
-
+    
     endCall() {
         // Reset button states
         this.enableAllButtons();
